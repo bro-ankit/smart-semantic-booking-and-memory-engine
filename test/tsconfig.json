@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "node",
+      "jest"
+    ]
+  },
+  "include": [
+    "**/*.spec.ts",
+    "../src/**/*",
+    "schema/vector.type.test.ts"
+  ]
+}
