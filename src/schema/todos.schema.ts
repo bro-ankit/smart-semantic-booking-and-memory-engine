@@ -4,13 +4,13 @@ import {
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
-import { bookmarks } from './bookmarks.schema';
+import { bookmarksTable } from './bookmarks.schema';
 
-export const todos = pgTable('todos', {
+export const todosTable = pgTable('todos', {
   id: uuid('id').primaryKey().defaultRandom(),
   bookmarkId: uuid('bookmark_id')
     .notNull()
-    .references(() => bookmarks.id, { onDelete: 'cascade' }),
+    .references(() => bookmarksTable.id, { onDelete: 'cascade' }),
   task: text('task').notNull(),
   completedAt: timestamp('completed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true })
@@ -18,5 +18,5 @@ export const todos = pgTable('todos', {
     .defaultNow(),
 });
 
-export type TodoSelect = typeof todos.$inferSelect;
-export type TodoInsert = typeof todos.$inferInsert;
+export type TodoSelect = typeof todosTable.$inferSelect;
+export type TodoInsert = typeof todosTable.$inferInsert;

@@ -10,7 +10,7 @@ export const INGESTION_STATUSES = [
 
 export type IngestionStatus = (typeof INGESTION_STATUSES)[number];
 
-export const bookmarks = pgTable('bookmarks', {
+export const bookmarksTable = pgTable('bookmarks', {
   id: uuid('id').primaryKey().defaultRandom(),
   originalUrl: text('original_url').notNull(),
   contentSummary: text('content_summary').notNull().default(''),
@@ -26,5 +26,5 @@ export const bookmarks = pgTable('bookmarks', {
     .defaultNow(),
 });
 
-export type BookmarkSelect = typeof bookmarks.$inferSelect;
-export type BookmarkInsert = typeof bookmarks.$inferInsert;
+export type BookmarkSelect = typeof bookmarksTable.$inferSelect;
+export type BookmarkInsert = typeof bookmarksTable.$inferInsert;
