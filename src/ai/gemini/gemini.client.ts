@@ -4,7 +4,8 @@ import { GoogleGenerativeAI, SchemaType, type Schema } from '@google/generative-
 import { GEMINI_CLIENT, GEMINI_ERRORS } from './gemini.constants';
 import type { IAiClient, AiResponseSchema, AiSchemaProperty } from '../ai.interface';
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GENERATION_MODEL = 'gemini-2.5-flash';
+const EMBEDDING_MODEL = 'text-embedding-004';
 
 function toGeminiSchema(prop: AiSchemaProperty | AiResponseSchema): Schema {
   switch (prop.type) {
@@ -37,20 +38,30 @@ export class GeminiClient implements IAiClient {
   ) { }
 
   async generateStructured(prompt: string, schema: AiResponseSchema): Promise<unknown> {
-    this.logger.info({ model: GEMINI_MODEL }, 'Sending structured generation request');
+    this.logger.info({ model: GENERATION_MODEL }, 'Sending structured generation request');
 
     const model = this.client.getGenerativeModel({
-      model: GEMINI_MODEL,
+      model: GENERATION_MODEL,
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: toGeminiSchema(schema),
       },
     });
 
-
     const rawJson = await this.executeGeneration(model, prompt);
-
     return this.parseJson(rawJson);
+  }
+
+  async generateEmbedding(text: string): Promise<number[]> {
+    this.logger.info({ model: EMBEDDING_MODEL }, 'Generating embedding');
+    try {
+      const model = this.client.getGenerativeModel({ model: EMBEDDING_MODEL });
+      const result = await model.embedContent(text);
+      return result.embedding.values;
+    } catch (err) {
+      this.logger.error({ err }, GEMINI_ERRORS.API_CALL_FAILED);
+      throw new InternalServerErrorException(GEMINI_ERRORS.API_CALL_FAILED, { cause: err });
+    }
   }
 
   private async executeGeneration(model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>, prompt: string): Promise<string> {

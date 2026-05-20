@@ -6,6 +6,8 @@ import * as schema from '../schema';
 import { DRIZZLE_DB } from './database.constants';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { ENV_VARIABLES } from '../constants/env.constants';
+import { DrizzleTransactionContext } from './drizzle-transaction.context';
+import { DrizzleTransactionService } from './drizzle-transaction.service';
 
 export type DrizzleDb = NodePgDatabase<typeof schema>;
 
@@ -35,7 +37,7 @@ const DRIZZLE_PROVIDER = {
 
 @Global()
 @Module({
-  providers: [DRIZZLE_PROVIDER],
-  exports: [DRIZZLE_DB],
+  providers: [DRIZZLE_PROVIDER, DrizzleTransactionContext, DrizzleTransactionService],
+  exports: [DRIZZLE_DB, DrizzleTransactionContext, DrizzleTransactionService],
 })
 export class DatabaseModule { }

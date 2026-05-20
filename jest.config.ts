@@ -11,6 +11,8 @@ const config: Config = {
   coverageDirectory: 'coverage',
   testEnvironment: 'node',
   injectGlobals: true,
+  forceExit: true,
+  maxWorkers: 1,
 };
 
 export default config;
