@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { sql, isNotNull } from 'drizzle-orm';
+import { sql, isNotNull, and } from 'drizzle-orm';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { DRIZZLE_DB } from '../database/database.constants';
 import { DrizzleTransactionContext } from '../database/drizzle-transaction.context';
@@ -12,7 +12,7 @@ export class BookmarksRepository {
     @InjectPinoLogger(BookmarksRepository.name) private readonly logger: PinoLogger,
     @Inject(DRIZZLE_DB) private readonly db: DrizzleDb,
     private readonly txContext: DrizzleTransactionContext,
-  ) {}
+  ) { }
 
   async insert(data: BookmarkInsert): Promise<BookmarkSelect> {
     this.logger.debug('Inserting bookmark');
@@ -21,15 +21,25 @@ export class BookmarksRepository {
     return result!;
   }
 
-  async findSimilar(embedding: number[], limit: number): Promise<BookmarkSelect[]> {
-    this.logger.debug({ limit }, 'Finding similar bookmarks by embedding');
+  async findSimilar(embedding: number[], limit: number, maxDistance: number): Promise<BookmarkSelect[]> {
+    this.logger.debug({ limit, maxDistance }, 'Finding similar bookmarks by embedding');
     const client = this.txContext.getClient(this.db);
     const vector = `[${embedding.join(',')}]`;
-    return client
-      .select()
+    const distanceExpr = sql<number>`${bookmarksTable.embedding} <=> ${vector}::vector`;
+    const rows = await client
+      .select({ bookmark: bookmarksTable, distance: distanceExpr })
       .from(bookmarksTable)
-      .where(isNotNull(bookmarksTable.embedding))
-      .orderBy(sql`${bookmarksTable.embedding} <=> ${vector}::vector`)
+      .where(and(
+        isNotNull(bookmarksTable.embedding),
+        sql`${bookmarksTable.embedding} <=> ${vector}::vector <= ${maxDistance}`,
+      ))
+      .orderBy(distanceExpr)
       .limit(limit);
+
+    this.logger.info(
+      { scores: rows.map((r) => ({ id: r.bookmark.id, distance: r.distance })) },
+      'Similarity scores',
+    );
+    return rows.map((r) => r.bookmark);
   }
 }

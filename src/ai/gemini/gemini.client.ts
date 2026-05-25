@@ -5,7 +5,7 @@ import { GEMINI_CLIENT, GEMINI_ERRORS } from './gemini.constants';
 import type { IAiClient, AiResponseSchema, AiSchemaProperty } from '../ai.interface';
 
 const GENERATION_MODEL = 'gemini-2.5-flash';
-const EMBEDDING_MODEL = 'text-embedding-004';
+const EMBEDDING_MODEL = 'gemini-embedding-001';
 
 function toGeminiSchema(prop: AiSchemaProperty | AiResponseSchema): Schema {
   switch (prop.type) {
@@ -52,11 +52,24 @@ export class GeminiClient implements IAiClient {
     return this.parseJson(rawJson);
   }
 
+  async generateText(systemPrompt: string, userMessage: string): Promise<string> {
+    this.logger.info({ model: GENERATION_MODEL }, 'Sending free-text generation request');
+
+    const model = this.client.getGenerativeModel({
+      model: GENERATION_MODEL,
+      systemInstruction: systemPrompt,
+    });
+
+    return this.executeGeneration(model, userMessage);
+  }
+
   async generateEmbedding(text: string): Promise<number[]> {
     this.logger.info({ model: EMBEDDING_MODEL }, 'Generating embedding');
     try {
       const model = this.client.getGenerativeModel({ model: EMBEDDING_MODEL });
-      const result = await model.embedContent(text);
+      // outputDimensionality is supported by gemini-embedding-001 but missing from SDK types
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await model.embedContent({ content: { role: 'user', parts: [{ text }] }, outputDimensionality: 768 } as any);
       return result.embedding.values;
     } catch (err) {
       this.logger.error({ err }, GEMINI_ERRORS.API_CALL_FAILED);

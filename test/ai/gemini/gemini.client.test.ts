@@ -8,6 +8,9 @@ import { AssertUtils } from '../../utils/assert.utils';
 
 const PROMPT = 'Extract structured data from this text about Kafka partitioning.';
 const SAMPLE_TEXT = 'NestJS dependency injection patterns for scalable services';
+const SYSTEM_PROMPT = 'Answer only from the provided context.';
+const USER_MESSAGE = 'How does Kafka handle message ordering?';
+const LLM_ANSWER = 'Kafka preserves order within a partition.';
 
 const INPUT_SCHEMA: AiResponseSchema = {
   type: 'object',
@@ -117,6 +120,55 @@ describe('GeminiClient Unit Test', () => {
     });
   });
 
+  describe('Given generateText, When called', () => {
+    describe('And Gemini returns a response', () => {
+      test('Then it returns the raw text answer', async () => {
+        mockGenerateContent.mockResolvedValueOnce({
+          response: { text: () => LLM_ANSWER },
+        });
+
+        const result = await sut.generateText(SYSTEM_PROMPT, USER_MESSAGE);
+
+        expect(result).toBe(LLM_ANSWER);
+      });
+
+      test('Then it calls getGenerativeModel with gemini-2.5-flash and the system instruction', async () => {
+        mockGenerateContent.mockResolvedValueOnce({
+          response: { text: () => LLM_ANSWER },
+        });
+
+        await sut.generateText(SYSTEM_PROMPT, USER_MESSAGE);
+
+        expect(geminiClient.getGenerativeModel).toHaveBeenCalledWith({
+          model: 'gemini-2.5-flash',
+          systemInstruction: SYSTEM_PROMPT,
+        });
+      });
+
+      test('Then it calls generateContent with the user message', async () => {
+        mockGenerateContent.mockResolvedValueOnce({
+          response: { text: () => LLM_ANSWER },
+        });
+
+        await sut.generateText(SYSTEM_PROMPT, USER_MESSAGE);
+
+        expect(mockGenerateContent).toHaveBeenCalledWith(USER_MESSAGE);
+      });
+    });
+
+    describe('And the Gemini API call throws', () => {
+      test('Then it throws 500 with "Gemini API call failed"', async () => {
+        mockGenerateContent.mockRejectedValueOnce(new Error('rate limit exceeded'));
+
+        await AssertUtils.assertError(
+          () => sut.generateText(SYSTEM_PROMPT, USER_MESSAGE),
+          'Gemini API call failed',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      });
+    });
+  });
+
   describe('Given generateEmbedding, When called', () => {
     describe('And embedContent succeeds', () => {
       test('Then it returns the embedding values as a number[]', async () => {
@@ -145,7 +197,7 @@ describe('GeminiClient Unit Test', () => {
     });
 
     describe('And embedContent throws', () => {
-      test(`Then it throws 500 with "${'Gemini API call failed'}"`, async () => {
+      test('Then it throws 500 with "Gemini API call failed"', async () => {
         mockEmbedContent.mockRejectedValueOnce(new Error('network timeout'));
 
         await AssertUtils.assertError(

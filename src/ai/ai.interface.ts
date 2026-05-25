@@ -14,4 +14,5 @@ export type AiResponseSchema = {
 export interface IAiClient {
   generateStructured(prompt: string, schema: AiResponseSchema): Promise<unknown>;
   generateEmbedding(text: string): Promise<number[]>;
+  generateText(systemPrompt: string, userMessage: string): Promise<string>;
 }

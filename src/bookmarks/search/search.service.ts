@@ -19,7 +19,7 @@ export class SearchService {
     this.logger.info({ query }, 'Semantic search request');
 
     const embedding = await this.aiClient.generateEmbedding(query);
-    const results = await this.bookmarksRepository.findSimilar(embedding, SEARCH_DEFAULTS.TOP_K);
+    const results = await this.bookmarksRepository.findSimilar(embedding, SEARCH_DEFAULTS.TOP_K, SEARCH_DEFAULTS.MAX_DISTANCE);
 
     return results.map((bookmark) =>
       plainToInstance(SearchResultDto, bookmark, { excludeExtraneousValues: true }),

@@ -22,6 +22,13 @@
       "when": 1779106375000,
       "tag": "0002_add_hnsw_embedding_index",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779715314492,
+      "tag": "0003_resize_embedding_to_3072",
+      "breakpoints": true
     }
   ]
 }
