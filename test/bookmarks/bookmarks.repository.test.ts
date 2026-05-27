@@ -78,13 +78,86 @@ describe('BookmarksRepository IT', () => {
     });
   });
 
+  describe('Given updateStatus, When called', () => {
+    describe('And the bookmark exists and a new status is provided', () => {
+      test('Then it updates the status field in the database', async () => {
+        const bookmark = await sut.insert({ originalUrl: 'https://example.com', status: 'PENDING' });
+
+        await sut.updateStatus(bookmark.id, 'PROCESSING');
+
+        const [row] = await env.db.select().from(bookmarksTable);
+        expect(row!.status).toBe('PROCESSING');
+      });
+    });
+
+    describe('And an errorMessage is provided', () => {
+      test('Then it persists the error message alongside the FAILED status', async () => {
+        const bookmark = await sut.insert({ originalUrl: 'https://example.com', status: 'PENDING' });
+
+        await sut.updateStatus(bookmark.id, 'FAILED', 'LLM timeout');
+
+        const [row] = await env.db.select().from(bookmarksTable);
+        expect(row!.status).toBe('FAILED');
+        expect(row!.errorMessage).toBe('LLM timeout');
+      });
+    });
+
+    describe('And no errorMessage is provided', () => {
+      test('Then it leaves the existing errorMessage unchanged', async () => {
+        const bookmark = await sut.insert({ originalUrl: 'https://example.com', status: 'PENDING' });
+        await sut.updateStatus(bookmark.id, 'FAILED', 'first error');
+        await sut.updateStatus(bookmark.id, 'PROCESSING');
+
+        const [row] = await env.db.select().from(bookmarksTable);
+        expect(row!.errorMessage).toBe('first error');
+      });
+    });
+  });
+
+  describe('Given updateEnrichment, When called', () => {
+    describe('And enrichment data is provided', () => {
+      test('Then it updates contentSummary, tags, embedding and status and returns the updated row', async () => {
+        const bookmark = await sut.insert({ originalUrl: 'https://example.com', status: 'PROCESSING' });
+        const newEmbedding = [...new Array(384).fill(0.5), ...new Array(384).fill(0.5)];
+
+        const result = await sut.updateEnrichment(bookmark.id, {
+          contentSummary: 'Updated summary',
+          tags: ['tag-a', 'tag-b'],
+          embedding: newEmbedding,
+          status: 'COMPLETED',
+        });
+
+        expect(result.id).toBe(bookmark.id);
+        expect(result.contentSummary).toBe('Updated summary');
+        expect(result.tags).toEqual(['tag-a', 'tag-b']);
+        expect(result.embedding).toEqual(newEmbedding);
+        expect(result.status).toBe('COMPLETED');
+      });
+
+      test('Then the changes are persisted to the database', async () => {
+        const bookmark = await sut.insert({ originalUrl: 'https://example.com', status: 'PROCESSING' });
+
+        await sut.updateEnrichment(bookmark.id, {
+          contentSummary: 'Persisted summary',
+          tags: ['persisted'],
+          embedding: EMBEDDING_A,
+          status: 'COMPLETED',
+        });
+
+        const [row] = await env.db.select().from(bookmarksTable);
+        expect(row!.contentSummary).toBe('Persisted summary');
+        expect(row!.status).toBe('COMPLETED');
+      });
+    });
+  });
+
   describe('Given findSimilar, When called', () => {
     describe('And two bookmarks with different embeddings exist', () => {
       test('Then it returns results ordered by cosine similarity — closest first', async () => {
         await sut.insert(BOOKMARK_A);
         await sut.insert(BOOKMARK_B);
 
-        const results = await sut.findSimilar(QUERY_EMBEDDING, 2);
+        const results = await sut.findSimilar(QUERY_EMBEDDING, 2, 1.0);
 
         expect(results).toHaveLength(2);
         expect(results[0].originalUrl).toBe(BOOKMARK_A.originalUrl);
@@ -95,7 +168,7 @@ describe('BookmarksRepository IT', () => {
         await sut.insert(BOOKMARK_A);
         await sut.insert(BOOKMARK_B);
 
-        const results = await sut.findSimilar(QUERY_EMBEDDING, 1);
+        const results = await sut.findSimilar(QUERY_EMBEDDING, 1, 1.0);
 
         expect(results).toHaveLength(1);
         expect(results[0].originalUrl).toBe(BOOKMARK_A.originalUrl);
@@ -107,17 +180,27 @@ describe('BookmarksRepository IT', () => {
         await sut.insert({ ...BOOKMARK_A, embedding: null });
         await sut.insert(BOOKMARK_B);
 
-        const results = await sut.findSimilar(QUERY_EMBEDDING, 3);
+        const results = await sut.findSimilar(QUERY_EMBEDDING, 3, 1.0);
 
         expect(results).toHaveLength(1);
         expect(results[0].originalUrl).toBe(BOOKMARK_B.originalUrl);
       });
     });
 
+    describe('And a bookmark exists but its distance exceeds maxDistance', () => {
+      test('Then it is excluded from results', async () => {
+        await sut.insert(BOOKMARK_A);
+
+        // maxDistance of 0 excludes everything except an identical vector
+        const results = await sut.findSimilar(QUERY_EMBEDDING, 3, 0.0);
+
+        expect(results).toHaveLength(0);
+      });
+    });
+
     describe('And no bookmarks exist', () => {
       test('Then it returns an empty array', async () => {
-        const results = await sut.findSimilar(QUERY_EMBEDDING, 3);
-
+        const results = await sut.findSimilar(QUERY_EMBEDDING, 3, 1.0);
         expect(results).toEqual([]);
       });
     });

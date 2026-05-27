@@ -4,6 +4,7 @@ import { AI_CLIENT } from '../../ai/ai.constants';
 import type { IAiClient, AiResponseSchema } from '../../ai/ai.interface';
 import { BookmarkEnrichmentSchema, type BookmarkEnrichment } from './enrichment.zod';
 import { ENRICHMENT_ERRORS } from './enrichment.constants';
+import { Resilient } from '../../resilience';
 
 const ENRICHMENT_RESPONSE_SCHEMA: AiResponseSchema = {
   type: 'object',
@@ -36,6 +37,7 @@ export class EnrichmentService {
     @Inject(AI_CLIENT) private readonly aiClient: IAiClient,
   ) { }
 
+  @Resilient()
   async enrich(text: string): Promise<BookmarkEnrichment> {
     this.logger.debug({ textLength: text.length }, 'Starting enrichment');
 

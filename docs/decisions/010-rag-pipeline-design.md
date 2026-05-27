@@ -5,7 +5,7 @@
 
 ## Context
 
-Day 5 closes the RAG loop: take a user question, retrieve semantically relevant bookmarks, and generate a grounded answer. Two design decisions were non-obvious.
+The RAG feature takes a user question, retrieves semantically relevant bookmarks, and generates a grounded answer. Two design decisions shaped the implementation.
 
 ## Decision
 

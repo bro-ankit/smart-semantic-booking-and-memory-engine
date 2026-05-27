@@ -3,6 +3,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { GoogleGenerativeAI, SchemaType, type Schema } from '@google/generative-ai';
 import { GEMINI_CLIENT, GEMINI_ERRORS } from './gemini.constants';
 import type { IAiClient, AiResponseSchema, AiSchemaProperty } from '../ai.interface';
+import { Resilient } from '../../resilience';
 
 const GENERATION_MODEL = 'gemini-2.5-flash';
 const EMBEDDING_MODEL = 'gemini-embedding-001';
@@ -63,6 +64,7 @@ export class GeminiClient implements IAiClient {
     return this.executeGeneration(model, userMessage);
   }
 
+  @Resilient()
   async generateEmbedding(text: string): Promise<number[]> {
     this.logger.info({ model: EMBEDDING_MODEL }, 'Generating embedding');
     try {

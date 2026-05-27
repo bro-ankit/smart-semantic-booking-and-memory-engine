@@ -5,7 +5,7 @@
 
 ## Context
 
-Day 4 requires finding the top-K bookmarks most semantically similar to a natural language query — without keyword matching.
+The search feature must find the top-K bookmarks most semantically similar to a natural language query — without keyword matching.
 
 ## Decision
 
@@ -31,7 +31,7 @@ Embeddings encode semantic direction. Two texts about the same concept but diffe
 
 ## Embedding column null guard
 
-`WHERE embedding IS NOT NULL` ensures PENDING/PROCESSING bookmarks (no embedding yet) never appear in search results. This is especially relevant once Day 6 adds status lifecycle.
+`WHERE embedding IS NOT NULL` ensures bookmarks that are still in `PENDING` or `PROCESSING` state (no embedding yet) never appear in search results.
 
 ## Consequences
 

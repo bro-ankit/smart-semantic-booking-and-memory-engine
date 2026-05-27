@@ -4,6 +4,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { DatabaseModule } from './database/database.module';
 import { AiModule } from './ai/ai.module';
 import { BookmarksModule } from './bookmarks/bookmarks.module';
+import { ResilienceModule } from './resilience';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { BookmarksModule } from './bookmarks/bookmarks.module';
           : undefined,
       },
     }),
+    ResilienceModule,
     DatabaseModule,
     AiModule,
     BookmarksModule,

@@ -14,6 +14,10 @@ function buildSearchableString(rawText: string, enrichment: BookmarkEnrichment):
   return `${rawText} ${enrichment.contentSummary} ${enrichment.tags.join(' ')}`;
 }
 
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 @Injectable()
 export class IngestService {
   constructor(
@@ -28,28 +32,41 @@ export class IngestService {
   async ingest(dto: IngestBookmarkDto): Promise<BookmarkSelect> {
     this.logger.info('Starting ingestion pipeline');
 
-    const enrichment = await this.enrichmentService.enrich(dto.rawText);
-    const embedding = await this.aiClient.generateEmbedding(
-      buildSearchableString(dto.rawText, enrichment),
-    );
-
-    const bookmark = await this.transactionService.execute(async () => {
-      const inserted = await this.bookmarksRepository.insert({
-        originalUrl: dto.rawText,
-        contentSummary: enrichment.contentSummary,
-        tags: enrichment.tags,
-        embedding,
-        status: 'COMPLETED',
-      });
-
-      await this.todosRepository.insertMany(
-        enrichment.actionItems.map((task) => ({ bookmarkId: inserted.id, task })),
-      );
-
-      return inserted;
+    const bookmark = await this.bookmarksRepository.insert({
+      originalUrl: dto.rawText,
+      status: 'PENDING',
     });
 
-    this.logger.info({ bookmarkId: bookmark.id }, 'Ingestion complete');
-    return bookmark;
+    try {
+      await this.bookmarksRepository.updateStatus(bookmark.id, 'PROCESSING');
+
+      const enrichment = await this.enrichmentService.enrich(dto.rawText);
+      const embedding = await this.aiClient.generateEmbedding(
+        buildSearchableString(dto.rawText, enrichment),
+      );
+
+      const completed = await this.transactionService.execute(async () => {
+        const updated = await this.bookmarksRepository.updateEnrichment(bookmark.id, {
+          contentSummary: enrichment.contentSummary,
+          tags: enrichment.tags,
+          embedding,
+          status: 'COMPLETED',
+        });
+
+        await this.todosRepository.insertMany(
+          enrichment.actionItems.map((task) => ({ bookmarkId: bookmark.id, task })),
+        );
+
+        return updated;
+      });
+
+      this.logger.info({ bookmarkId: bookmark.id }, 'Ingestion complete');
+      return completed;
+    } catch (err) {
+      const errorMessage = toErrorMessage(err);
+      this.logger.error({ bookmarkId: bookmark.id, err }, 'Ingestion failed, marking FAILED');
+      await this.bookmarksRepository.updateStatus(bookmark.id, 'FAILED', errorMessage);
+      throw err;
+    }
   }
 }

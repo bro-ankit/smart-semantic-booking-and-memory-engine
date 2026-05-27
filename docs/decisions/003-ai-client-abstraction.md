@@ -5,7 +5,7 @@
 
 ## Context
 
-Day 2 required calling Gemini to enrich raw text into structured metadata. The naive approach would inject `GoogleGenerativeAI` directly into `EnrichmentService`. Day 3 requires a second Gemini call — text embedding — and future work may swap providers entirely.
+The enrichment pipeline calls Gemini to extract structured metadata from raw text. The embedding pipeline makes a second Gemini call to generate vector representations. Injecting `GoogleGenerativeAI` directly into each service would couple business logic to a specific provider and make both services untestable without the real SDK.
 
 ## Decision
 
