@@ -1,16 +1,16 @@
 export const ENV_VARIABLES = {
     DATABASE: {
-        host: "DB.HOST",
-        port: "DB.PORT",
-        user: "DB.USER",
-        password: "DB.PASSWORD",
-        database: "DB.NAME",
-        poolSize: "DB.POOL_SIZE",
+        host: "DB_HOST",
+        port: "DB_PORT",
+        user: "DB_USER",
+        password: "DB_PASSWORD",
+        database: "DB_NAME",
+        poolSize: "DB_POOL_SIZE",
     },
     GEMINI: {
-        API_KEY: "GEMINI.API_KEY"
+        API_KEY: "GEMINI_API_KEY"
     },
     SERVER: {
-        PORT: 'SERVER.PORT'
+        PORT: 'SERVER_PORT'
     }
 } as const

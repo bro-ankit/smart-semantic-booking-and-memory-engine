@@ -1,7 +1,10 @@
-import { Module, Global } from '@nestjs/common';
+import { Module, Global, OnModuleInit, Inject } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import * as path from 'path';
 import * as schema from '../schema';
 import { DRIZZLE_DB } from './database.constants';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -40,4 +43,17 @@ const DRIZZLE_PROVIDER = {
   providers: [DRIZZLE_PROVIDER, DrizzleTransactionContext, DrizzleTransactionService],
   exports: [DRIZZLE_DB, DrizzleTransactionContext, DrizzleTransactionService],
 })
-export class DatabaseModule { }
+export class DatabaseModule implements OnModuleInit {
+  constructor(
+    @Inject(DRIZZLE_DB) private readonly db: DrizzleDb,
+    @InjectPinoLogger(DatabaseModule.name) private readonly logger: PinoLogger,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    this.logger.info('Running database migrations...');
+    await migrate(this.db, {
+      migrationsFolder: path.join(process.cwd(), 'db/migrations'),
+    });
+    this.logger.info('Migrations complete.');
+  }
+}

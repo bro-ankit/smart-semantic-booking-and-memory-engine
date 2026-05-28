@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   db:
     image: pgvector/pgvector:pg16
@@ -6,12 +8,39 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: ${DB.USER}
-      POSTGRES_PASSWORD: ${DB.PASSWORD}
-      POSTGRES_DB: ${DB.NAME}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-bookmarks_db}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./src/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-bookmarks_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bookmark_app
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT:-3000}:${SERVER_PORT:-3000}"
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-bookmarks_db}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      SERVER_PORT: ${SERVER_PORT:-3000}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata:

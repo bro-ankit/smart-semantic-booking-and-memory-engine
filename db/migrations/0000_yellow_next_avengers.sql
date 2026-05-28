@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 --> statement-breakpoint
-CREATE TABLE "bookmarks" (
+CREATE TABLE IF NOT EXISTS "bookmarks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"original_url" text NOT NULL,
 	"content_summary" text DEFAULT '' NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE "bookmarks" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "todos" (
+CREATE TABLE  IF NOT EXISTS "todos" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"bookmark_id" uuid NOT NULL,
 	"task" text NOT NULL,
@@ -19,4 +19,20 @@ CREATE TABLE "todos" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "todos" ADD CONSTRAINT "todos_bookmark_id_bookmarks_id_fk" FOREIGN KEY ("bookmark_id") REFERENCES "public"."bookmarks"("id") ON DELETE cascade ON UPDATE no action;
+DO $$
+BEGIN
+    -- Check if the foreign key constraint already exists in the catalog
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.table_constraints 
+        WHERE constraint_name = 'todos_bookmark_id_bookmarks_id_fk' 
+          AND table_name = 'todos'
+    ) THEN
+        -- Safely add the constraint only if it's missing
+        ALTER TABLE "todos" 
+        ADD CONSTRAINT "todos_bookmark_id_bookmarks_id_fk" 
+        FOREIGN KEY ("bookmark_id") REFERENCES "public"."bookmarks"("id") 
+        ON DELETE cascade 
+        ON UPDATE no action;
+    END IF;
+END $$;
