@@ -20,6 +20,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: bookmarks_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   app:
     build:
       context: .
@@ -38,9 +52,14 @@ services:
       DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
       SERVER_PORT: ${SERVER_PORT:-3000}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 volumes:
   pgdata:
+  redisdata:

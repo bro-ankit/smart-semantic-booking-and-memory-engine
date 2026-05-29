@@ -1,122 +1,111 @@
 # Smart Semantic Bookmarking & Memory Engine
 
-A production-grade micro-RAG pipeline that transforms raw text and URLs into searchable semantic memory. Ingest content → enrich with metadata → retrieve grounded answers in plain English.
-
----
-
-## Quick Overview
-
-Feed your bookmarks into the system. The pipeline:
-1. **Enriches** them via LLM-powered metadata extraction (summary, tags, action items)
-2. **Embeds** them into a 768-dimensional vector space for semantic search
-3. **Retrieves** answers grounded exclusively in your saved content
+A production-grade micro-RAG pipeline that transforms raw text and URLs into searchable semantic memory. Feed in content — the system enriches it, embeds it, and lets you retrieve grounded answers in plain English.
 
 No hallucinations. No keyword matching. Pure semantic understanding.
 
 ---
 
+## What it does
+
+1. **Accepts** raw text directly, or scrapes a URL asynchronously via a job queue
+2. **Enriches** content using Gemini 2.5 Flash — extracting a summary, tags, and action items
+3. **Embeds** the content into a 768-dimensional vector space (pgvector)
+4. **Retrieves** semantically similar bookmarks and generates grounded answers to questions
+
+---
+
 ## System Architecture
 
-This repository implements a resilient ingestion and retrieval pipeline utilizing **Gemini 2.5 Flash** for data enrichment and grounding, alongside **pgvector** for vector similarity search.
-
-The system is organized into three core layers:
-
-1. **Ingestion Loop** — Asynchronous bookmark processing with durability guarantees
-2. **Retrieval Loop** — Sub-millisecond semantic search and context-grounded Q&A
-3. **Resilience Layer** — Fault-tolerant patterns protecting LLM and database calls
+Three core layers: an ingestion pipeline, a retrieval surface, and a resilience layer protecting all external calls.
 
 ---
 
-## Architecture Layer 1: Ingestion Loop
+### Layer 1 — Ingestion Loop
 
-Processes incoming bookmarks asynchronously, ensuring status tracking (`PENDING` → `PROCESSING` → `COMPLETED`/`FAILED`), extracts structured metadata via LLM, and generates vector embeddings.
+Accepts either raw text (synchronous) or a URL (async via BullMQ). Both paths converge at the same enrichment and embedding pipeline.
 
-![Ingestion Loop](./docs/diagrams/ingestion-loop.png)
+![Ingestion Loop](docs/diagrams/ingestion-loop.png)
 
-### Execution Sequence
+#### Tiered URL Scraping
+
+`ScraperService` avoids launching a headless browser for every request:
+
+| Tier | Mechanism | When |
+|------|-----------|------|
+| **1 — Fast** | `fetch` + `@mozilla/readability` | Always attempted first |
+| **2 — Full** | Puppeteer (`networkidle2`) | Only when Tier 1 yields < 200 chars |
+
+Static pages (GitHub, documentation, blog posts) never touch Chrome. JavaScript-rendered SPAs fall back to Puppeteer automatically.
+
+#### Ingestion State Machine
 
 ```
-POST /api/v1/bookmarks
-         ↓
-[Initial Log: PENDING row written immediately]
-         ↓
-[Status Flip: PENDING → PROCESSING]
-         ↓
-[EnrichmentService @Resilient()]
-  ├─ Gemini 2.5 Flash extracts: summary, tags, actionItems
-         ↓
-[GeminiClient.generateEmbedding @Resilient()]
-  ├─ Vectorizes via gemini-embedding-001 → float[768]
-         ↓
-[Atomic Transaction]
-  ├─ updateEnrichment → COMPLETED
-  ├─ insertMany(todos) for generated actionItems
-  └─ [On failure: FAILED state + errorMessage stored]
+PENDING ──► PROCESSING ──► COMPLETED
+                       ╲
+                        ──► FAILED  (errorMessage stored)
 ```
 
-**Key Design**: A `PENDING` row is written **before any LLM call**. This means every ingestion attempt is durable from the start — a `FAILED` row carries the error; a stuck `PROCESSING` row indicates a crashed process.
+A `PENDING` row is written **before** any scraping or LLM call. Every attempt is observable from the start — a stuck `PROCESSING` row indicates a crashed process; a `FAILED` row carries the error message.
+
+#### Execution Sequence — rawText
+
+```
+POST /api/v1/bookmarks  { rawText: "..." }
+  │
+  ├─ Write PENDING row to DB
+  ├─ Transition PENDING → PROCESSING
+  ├─ EnrichmentService.enrich()  [@Resilient()]
+  │    └─ Gemini 2.5 Flash → { contentSummary, tags, actionItems }
+  ├─ IAiClient.generateEmbedding()  [@Resilient()]
+  │    └─ gemini-embedding-001 → float[768]
+  └─ Atomic transaction
+       ├─ updateEnrichment → COMPLETED
+       └─ insertMany(todos) linked to bookmark
+```
+
+#### Execution Sequence — URL
+
+```
+POST /api/v1/bookmarks  { url: "https://..." }
+  │
+  ├─ Write PENDING row to DB
+  ├─ Enqueue BullMQ job  (jobId = bookmarkId, 3 retries, exponential backoff)
+  └─ Return PENDING bookmark immediately  ← HTTP response ends here
+
+  [async — BullMQ worker]
+  ├─ ScraperService.scrape(url)
+  │    ├─ Tier 1: fetch + Readability  (fast path)
+  │    └─ Tier 2: Puppeteer            (JS-rendered fallback)
+  └─ IngestService.processRawText()  → same enrichment pipeline as above
+```
 
 ---
 
-## Architecture Layer 2: Retrieval Loop
+### Layer 2 — Retrieval Loop
 
-Exposes semantic querying and context-grounded Retrieval-Augmented Generation (RAG) surfaces.
-![Retrieval Loop](./docs/diagrams/retrieval-loop.png)
+![Retrieval Loop](docs/diagrams/retrieval-loop.png)
 
-### Semantic Search (`GET /api/v1/search?q=...`)
+#### Semantic Search — `GET /api/v1/search?q=...`
 
-```
-Query: "how does broker scaling work"
-         ↓
-[Embed query via gemini-embedding-001]
-         ↓
-[pgvector cosine distance (HNSW index, top-3)]
-  ├─ Sub-millisecond retrieval via pre-built index
-         ↓
-[Return: ranked BookmarkSelect[]]
-```
+The query string is embedded via `gemini-embedding-001`, then a cosine distance query (`<=>`) runs against the pgvector HNSW index, returning the top 3 closest bookmarks. Searching `"broker scaling"` surfaces a document about Kafka partitioning — no keyword overlap needed.
 
-The query `"how does broker scaling work"` semantically matches documents about Kafka partitioning — **no keyword overlap required**.
+#### Grounded Q&A — `POST /api/v1/ask`
 
-### Grounded Q&A (`POST /api/v1/ask`)
-
-```
-Question: "How does Kafka handle consumer scaling?"
-         ↓
-[Embed question via gemini-embedding-001]
-         ↓
-[pgvector cosine distance (HNSW index, top-3)]
-         ↓
-[Inject top-3 results as system context]
-         ↓
-[Gemini 2.5 Flash (grounded answer)]
-         ↓
-[Return: hallucination-resistant answer]
-```
-
-If no relevant bookmarks are found, the system responds: *"I don't have enough context in my bookmarks to answer this."*
+The question is embedded and used to retrieve the top 3 semantically relevant bookmarks. Those are injected as a system instruction into Gemini 2.5 Flash, which is instructed to answer **only** from the provided context. If nothing relevant exists, the system returns a defined fallback phrase rather than hallucinating.
 
 ---
 
-## Architecture Layer 3: Resilience Layer
+### Layer 3 — Resilience Layer
 
-Protects downstream dependencies and LLM providers via robust fault-tolerant patterns.
+![Resilience Layer](docs/diagrams/resilience-loop.png)
 
-![Resilience Layer](./docs/diagrams/resilience-layer.png)
+`@Resilient()` is applied to `EnrichmentService.enrich` and `GeminiClient.generateEmbedding`. Each decorated method gets both a retry policy and a circuit breaker transparently — callers are unaware.
 
-### Decorators Applied
-
-- `@Resilient()` on `EnrichmentService.enrich`
-- `@Resilient()` on `GeminiClient.generateEmbedding`
-
-### Policy Specifications
-
-| Policy | Specification |
+| Policy | Configuration |
 |--------|---------------|
-| **Retry Strategy** | 3 attempts with exponential backoff + full jitter to disperse concurrent spikes |
-| **Circuit Breaker** | Sampling-window monitoring; opens to `OPEN` state at 50% failure rate threshold, shedding local load |
-
-Each decorated method is shielded against transient failures, network latency, and cascading downstream issues.
+| Retry | 3 attempts, exponential backoff + full jitter |
+| Circuit Breaker | Opens at 50% failure rate, probes recovery after 10s |
 
 ---
 
@@ -124,186 +113,150 @@ Each decorated method is shielded against transient failures, network latency, a
 
 | Layer | Technology |
 |-------|------------|
-| **Runtime** | Node.js + TypeScript (NestJS) |
-| **Vector DB** | PostgreSQL 16 + pgvector |
-| **LLM** | Gemini 2.5 Flash (structured output + free-text) |
-| **Embeddings** | gemini-embedding-001 (768 dimensions) |
-| **Validation** | Zod (structured LLM output schema) |
-| **ORM** | Drizzle ORM |
-| **Resilience** | cockatiel (retry + circuit breaker) |
+| Runtime | Node.js + TypeScript (NestJS) |
+| Vector DB | PostgreSQL 16 + pgvector |
+| LLM | Gemini 2.5 Flash |
+| Embeddings | gemini-embedding-001 (768 dimensions) |
+| Validation | Zod (structured LLM output) |
+| ORM | Drizzle ORM |
+| Job Queue | BullMQ + Redis 7 |
+| Scraping — Tier 1 | `fetch` + `@mozilla/readability` |
+| Scraping — Tier 2 | Puppeteer (headless Chrome, Docker-compatible) |
+| Resilience | cockatiel (retry + circuit breaker) |
+| Architecture | NestJS CQRS (`CommandBus`) |
 
 ---
 
-## Infrastructure Setup
+## Running Locally
 
 **Prerequisites:** Docker, Node.js 20+
 
 ```bash
-# 1. Clone and configure environment
 git clone <repo>
 cd smart-semantic-bookmarking-and-memory-engine
 cp .env.example .env
-# Fill in DB_PASSWORD and GEMINI_API_KEY in .env
+# Set DB_PASSWORD and GEMINI_API_KEY in .env
 
-# 2. Start the application
 docker compose up -d --build
 ```
 
-For local development without Docker:
-```bash
-npm install
-npm run start:dev
-```
-
-**Swagger UI** is available at `http://localhost:3000/api/v1/docs`.
+Swagger UI: `http://localhost:3000/api/v1/docs`
 
 ### Environment Variables
 
 ```env
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=<postgres user>
-DB_PASSWORD=<postgres password>
+DB_USER=postgres
+DB_PASSWORD=<your password>
 DB_NAME=bookmarks_db
 DB_POOL_SIZE=10
 SERVER_PORT=3000
 GEMINI_API_KEY=<your key>
+REDIS_HOST=localhost
+REDIS_PORT=6379
+```
+
+### Running Tests
+
+```bash
+npm run test
 ```
 
 ---
 
 ## API Reference
 
-### Ingest a Bookmark
+### Ingest — Raw Text
 
-**Request:**
 ```http
 POST /api/v1/bookmarks
 Content-Type: application/json
 
-{
-  "rawText": "Kafka uses a partition-per-consumer model to achieve horizontal scale. Each partition is an ordered, immutable log."
-}
+{ "rawText": "Kafka uses a partition-per-consumer model to achieve horizontal scale." }
 ```
 
-**Response:**
 ```json
 {
   "id": "d3f1a2b4-...",
   "originalUrl": "Kafka uses a partition-per-consumer model...",
-  "contentSummary": "Kafka achieves horizontal scalability by assigning partitions to consumers, where each partition maintains an ordered, immutable log of messages.",
-  "tags": ["kafka", "partitioning", "messaging", "distributed-systems", "scalability"],
+  "contentSummary": "Kafka achieves horizontal scalability through partition assignment within consumer groups.",
+  "tags": ["kafka", "partitioning", "distributed-systems", "scalability"],
   "status": "COMPLETED",
-  "embedding": null,
   "errorMessage": null,
-  "createdAt": "2026-05-27T10:00:00.000Z"
+  "createdAt": "2026-05-29T10:00:00.000Z"
 }
 ```
 
----
+### Ingest — URL
+
+```http
+POST /api/v1/bookmarks
+Content-Type: application/json
+
+{ "url": "https://kafka.apache.org/documentation/#design_pull" }
+```
+
+```json
+{
+  "id": "a1b2c3d4-...",
+  "originalUrl": "https://kafka.apache.org/documentation/#design_pull",
+  "contentSummary": "",
+  "tags": [],
+  "status": "PENDING",
+  "errorMessage": null,
+  "createdAt": "2026-05-29T10:00:00.000Z"
+}
+```
+
+The bookmark transitions to `COMPLETED` in the background. `rawText` and `url` are mutually exclusive — supplying both returns a `400`.
 
 ### Semantic Search
 
-**Request:**
 ```http
 GET /api/v1/search?q=how does broker scaling work
 ```
 
-**Response:**
 ```json
 [
   {
     "id": "d3f1a2b4-...",
-    "originalUrl": "Kafka uses a partition-per-consumer model...",
-    "contentSummary": "Kafka achieves horizontal scalability by assigning partitions to consumers, where each partition maintains an ordered, immutable log of messages.",
-    "tags": ["kafka", "partitioning", "messaging", "distributed-systems", "scalability"],
+    "contentSummary": "Kafka achieves horizontal scalability through partition assignment within consumer groups.",
+    "tags": ["kafka", "partitioning", "distributed-systems", "scalability"],
     "status": "COMPLETED",
-    "createdAt": "2026-05-27T10:00:00.000Z"
+    "createdAt": "2026-05-29T10:00:00.000Z"
   }
 ]
 ```
 
----
+### Ask Your Bookmarks
 
-### Ask Your Bookmarks (RAG)
-
-**Request:**
 ```http
 POST /api/v1/ask
 Content-Type: application/json
 
-{
-  "question": "How does Kafka handle consumer scaling?"
-}
+{ "question": "How does Kafka handle consumer scaling?" }
 ```
 
-**Response:**
 ```json
 {
-  "answer": "Based on your saved content: Kafka achieves consumer scaling through its partition model — each partition is assigned to exactly one consumer within a consumer group, allowing throughput to scale horizontally by adding partitions and consumers in tandem."
-}
-```
-
-**No Context Response:**
-```json
-{
-  "answer": "I don't have enough context in my bookmarks to answer this. Try ingesting relevant content first."
+  "answer": "Kafka achieves consumer scaling through its partition model — each partition is assigned to exactly one consumer within a consumer group, allowing throughput to scale horizontally by adding partitions and consumers in tandem."
 }
 ```
 
 ---
 
-## Ingestion Status Lifecycle
+## Design Decisions
 
-```
-PENDING ──────► PROCESSING ──────► COMPLETED
-                            ╲
-                             ──────► FAILED (errorMessage populated)
-```
+Full records in [`docs/decisions/`](docs/decisions/). Highlights:
 
-**Guarantee:** A `PENDING` row is written before any LLM call. Every ingestion attempt is durable from the start.
-
----
-
-## Key Design Decisions
-
-Design decision records live in `docs/decisions/`. Key highlights:
-
-| ADR | Decision | Rationale |
-|-----|----------|-----------|
-| [003](docs/decisions/003-ai-client-abstraction.md) | Provider-agnostic `IAiClient` | Gemini is an implementation detail; swap providers without architecture changes |
-| [006](docs/decisions/006-drizzle-transaction-propagation.md) | `DrizzleTransactionContext` via AsyncLocalStorage | Transactions propagate cleanly through async boundaries |
-| [009](docs/decisions/009-semantic-search-query.md) | Cosine distance over L2 | Magnitude-invariant similarity for embeddings |
-| [010](docs/decisions/010-rag-pipeline-design.md) | Context injected via system prompt, not user message | Prevents prompt injection; maintains semantic integrity |
-| [011](docs/decisions/011-ingestion-state-machine.md) | `PENDING` written first | Failures are always observable; no silent losses |
-| [012](docs/decisions/012-resilience-module.md) | `@Resilient()` decorator for retry + circuit breaker | Centralized fault tolerance; consistent policy application |
-
----
-
-## Development
-
-### Running Tests
-
-```bash
-npm run test
-npm run test:e2e
-```
-
-### Building for Production
-
-```bash
-npm run build
-npm run start:prod
-```
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit changes: `git commit -am 'Add feature description'`
-4. Push to branch: `git push origin feature/your-feature`
-5. Submit a pull request
-
----
+| ADR | Decision | Why |
+|-----|----------|-----|
+| [003](docs/decisions/003-ai-client-abstraction.md) | Provider-agnostic `IAiClient` | Swap LLM providers without touching service code |
+| [006](docs/decisions/006-drizzle-transaction-propagation.md) | `DrizzleTransactionContext` via AsyncLocalStorage | Transaction propagation across async boundaries without passing context manually |
+| [009](docs/decisions/009-semantic-search-query.md) | Cosine distance (`<=>`) over L2 | Magnitude-invariant — correct for embeddings regardless of text length |
+| [011](docs/decisions/011-ingestion-state-machine.md) | `PENDING` written before any LLM call | No silent failures; every attempt is observable |
+| [012](docs/decisions/012-resilience-module.md) | `@Resilient()` decorator | One-line fault tolerance; callers are unaware of retries |
+| [013](docs/decisions/013-async-url-ingestion-bullmq.md) | BullMQ queue for URL ingestion | Non-blocking HTTP response; durable across restarts; built-in retry |
+| [014](docs/decisions/014-tiered-scraping-strategy.md) | Cheerio/Readability first, Puppeteer fallback | Puppeteer only when genuinely needed — saves ~2–5s and 250MB RAM per static page |
+| [015](docs/decisions/015-cqrs-command-handler-and-ingest-module.md) | CQRS command handler for ingestion branching | Thin controller; no circular module dependencies |

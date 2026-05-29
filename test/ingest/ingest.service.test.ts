@@ -1,14 +1,14 @@
 import { InternalServerErrorException } from '@nestjs/common';
 import { TestBed } from '@automock/jest';
-import { IngestService } from '../../../src/bookmarks/ingest/ingest.service';
-import { EnrichmentService } from '../../../src/bookmarks/enrichment/enrichment.service';
-import { BookmarksRepository } from '../../../src/bookmarks/bookmarks.repository';
-import { TodosRepository } from '../../../src/bookmarks/todos.repository';
-import { DrizzleTransactionService } from '../../../src/database/drizzle-transaction.service';
-import { AI_CLIENT } from '../../../src/ai/ai.constants';
-import type { IAiClient } from '../../../src/ai/ai.interface';
-import type { BookmarkEnrichment } from '../../../src/bookmarks/enrichment/enrichment.zod';
-import type { BookmarkSelect } from '../../../src/schema/bookmarks.schema';
+import { IngestService } from '../../src/ingest/ingest.service';
+import { EnrichmentService } from '../../src/bookmarks/enrichment/enrichment.service';
+import { BookmarksRepository } from '../../src/bookmarks/bookmarks.repository';
+import { TodosRepository } from '../../src/bookmarks/todos.repository';
+import { DrizzleTransactionService } from '../../src/database/drizzle-transaction.service';
+import { AI_CLIENT } from '../../src/ai/ai.constants';
+import type { IAiClient } from '../../src/ai/ai.interface';
+import type { BookmarkEnrichment } from '../../src/bookmarks/enrichment/enrichment.zod';
+import { mockBookmarkSelect } from '../__mocks__/bookmark.mock';
 
 describe('IngestService Unit Test', () => {
   let sut: IngestService;
@@ -28,24 +28,15 @@ describe('IngestService Unit Test', () => {
 
   const EMBEDDING = new Array(768).fill(0.01);
 
-  const PENDING_BOOKMARK: BookmarkSelect = {
+  const PENDING_BOOKMARK = mockBookmarkSelect({ id: 'abc-123', originalUrl: RAW_TEXT, status: 'PENDING' });
+  const COMPLETED_BOOKMARK = mockBookmarkSelect({
     id: 'abc-123',
     originalUrl: RAW_TEXT,
-    contentSummary: '',
-    tags: [],
-    embedding: null,
-    status: 'PENDING',
-    errorMessage: null,
-    createdAt: new Date('2026-05-20T00:00:00Z'),
-  };
-
-  const COMPLETED_BOOKMARK: BookmarkSelect = {
-    ...PENDING_BOOKMARK,
     contentSummary: ENRICHMENT.contentSummary,
     tags: ENRICHMENT.tags,
     embedding: EMBEDDING,
     status: 'COMPLETED',
-  };
+  });
 
   beforeAll(() => {
     const { unit, unitRef } = TestBed.create(IngestService).compile();

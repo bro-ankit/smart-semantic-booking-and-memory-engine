@@ -12,5 +12,9 @@ export const ENV_VARIABLES = {
     },
     SERVER: {
         PORT: 'SERVER_PORT'
-    }
+    },
+    REDIS: {
+        HOST: 'REDIS_HOST',
+        PORT: 'REDIS_PORT',
+    },
 } as const
