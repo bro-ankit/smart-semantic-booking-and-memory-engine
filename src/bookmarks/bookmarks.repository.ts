@@ -44,6 +44,37 @@ export class BookmarksRepository {
     return result!;
   }
 
+  async findById(id: string): Promise<BookmarkSelect | undefined> {
+    this.logger.debug({ id }, 'Finding bookmark by id');
+    const client = this.txContext.getClient(this.db);
+    const [result] = await client
+      .select()
+      .from(bookmarksTable)
+      .where(eq(bookmarksTable.id, id))
+      .limit(1);
+    return result;
+  }
+
+  async findByStatus(status: IngestionStatus): Promise<BookmarkSelect[]> {
+    this.logger.debug({ status }, 'Finding bookmarks by status');
+    const client = this.txContext.getClient(this.db);
+    return client.select().from(bookmarksTable).where(eq(bookmarksTable.status, status));
+  }
+
+  async updateWithAiEnrichment(
+    id: string,
+    data: { aiContentSummary: string; aiTags: string[]; aiActionItems: string[] },
+  ): Promise<BookmarkSelect> {
+    this.logger.debug({ id }, 'Saving AI enrichment, transitioning to REVIEW_PENDING');
+    const client = this.txContext.getClient(this.db);
+    const [result] = await client
+      .update(bookmarksTable)
+      .set({ ...data, status: 'REVIEW_PENDING' })
+      .where(eq(bookmarksTable.id, id))
+      .returning();
+    return result;
+  }
+
   async findSimilar(embedding: number[], limit: number, maxDistance: number): Promise<BookmarkSelect[]> {
     this.logger.debug({ limit, maxDistance }, 'Finding similar bookmarks by embedding');
     const client = this.txContext.getClient(this.db);

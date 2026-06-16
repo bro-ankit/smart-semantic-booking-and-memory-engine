@@ -3,7 +3,7 @@ import { SearchService } from '../../../src/bookmarks/search/search.service';
 import { BookmarksRepository } from '../../../src/bookmarks/bookmarks.repository';
 import { AI_CLIENT } from '../../../src/ai/ai.constants';
 import type { IAiClient } from '../../../src/ai/ai.interface';
-import type { BookmarkSelect } from '../../../src/schema/bookmarks.schema';
+import { mockBookmarkSelect } from '../../__mocks__/bookmark.mock';
 
 describe('SearchService Unit Test', () => {
   let sut: SearchService;
@@ -13,37 +13,10 @@ describe('SearchService Unit Test', () => {
   const QUERY = 'how does Kafka handle message ordering';
   const EMBEDDING = new Array(768).fill(0.05);
 
-  const BOOKMARK_ROWS: BookmarkSelect[] = [
-    {
-      id: 'id-1',
-      originalUrl: 'https://example.com/kafka-partitioning',
-      contentSummary: 'Deep dive into Kafka partitioning and ordering guarantees.',
-      tags: ['kafka', 'streaming'],
-      embedding: EMBEDDING,
-      status: 'COMPLETED',
-      errorMessage: null,
-      createdAt: new Date('2026-05-20T00:00:00Z'),
-    },
-    {
-      id: 'id-2',
-      originalUrl: 'https://example.com/kafka-consumers',
-      contentSummary: 'Consumer group rebalancing in Apache Kafka.',
-      tags: ['kafka', 'consumers'],
-      embedding: EMBEDDING,
-      status: 'COMPLETED',
-      errorMessage: null,
-      createdAt: new Date('2026-05-20T01:00:00Z'),
-    },
-    {
-      id: 'id-3',
-      originalUrl: 'https://example.com/event-streaming',
-      contentSummary: 'Event streaming patterns for distributed systems.',
-      tags: ['events', 'distributed'],
-      embedding: EMBEDDING,
-      status: 'COMPLETED',
-      errorMessage: null,
-      createdAt: new Date('2026-05-20T02:00:00Z'),
-    },
+  const BOOKMARK_ROWS = [
+    mockBookmarkSelect({ id: 'id-1', originalUrl: 'https://example.com/kafka-partitioning', contentSummary: 'Deep dive into Kafka partitioning and ordering guarantees.', tags: ['kafka', 'streaming'], embedding: EMBEDDING, status: 'COMPLETED', createdAt: new Date('2026-05-20T00:00:00Z') }),
+    mockBookmarkSelect({ id: 'id-2', originalUrl: 'https://example.com/kafka-consumers', contentSummary: 'Consumer group rebalancing in Apache Kafka.', tags: ['kafka', 'consumers'], embedding: EMBEDDING, status: 'COMPLETED', createdAt: new Date('2026-05-20T01:00:00Z') }),
+    mockBookmarkSelect({ id: 'id-3', originalUrl: 'https://example.com/event-streaming', contentSummary: 'Event streaming patterns for distributed systems.', tags: ['events', 'distributed'], embedding: EMBEDDING, status: 'COMPLETED', createdAt: new Date('2026-05-20T02:00:00Z') }),
   ];
 
   beforeAll(() => {
@@ -97,7 +70,7 @@ describe('SearchService Unit Test', () => {
         await sut.search(QUERY);
 
         expect(aiClient.generateEmbedding).toHaveBeenCalledWith(QUERY);
-        expect(bookmarksRepository.findSimilar).toHaveBeenCalledWith(EMBEDDING, 3);
+        expect(bookmarksRepository.findSimilar).toHaveBeenCalledWith(EMBEDDING, 3, 0.5);
       });
     });
 

@@ -56,7 +56,7 @@ describe('GeminiClient Unit Test', () => {
 
   describe('Given generateStructured, When called', () => {
     describe('And Gemini returns valid JSON', () => {
-      test('Then it returns the parsed object', async () => {
+      test('Then it calls the model with the mapped schema and returns the parsed object', async () => {
         mockGenerateContent.mockResolvedValueOnce({
           response: { text: () => JSON.stringify(PARSED_RESPONSE) },
         });
@@ -64,15 +64,6 @@ describe('GeminiClient Unit Test', () => {
         const result = await sut.generateStructured(PROMPT, INPUT_SCHEMA);
 
         expect(result).toEqual(PARSED_RESPONSE);
-      });
-
-      test('Then it calls getGenerativeModel with json mime type and the mapped Gemini schema', async () => {
-        mockGenerateContent.mockResolvedValueOnce({
-          response: { text: () => JSON.stringify(PARSED_RESPONSE) },
-        });
-
-        await sut.generateStructured(PROMPT, INPUT_SCHEMA);
-
         expect(geminiClient.getGenerativeModel).toHaveBeenCalledWith({
           model: 'gemini-2.5-flash',
           generationConfig: {
@@ -80,15 +71,6 @@ describe('GeminiClient Unit Test', () => {
             responseSchema: EXPECTED_GEMINI_SCHEMA,
           },
         });
-      });
-
-      test('Then it calls generateContent with the prompt', async () => {
-        mockGenerateContent.mockResolvedValueOnce({
-          response: { text: () => JSON.stringify(PARSED_RESPONSE) },
-        });
-
-        await sut.generateStructured(PROMPT, INPUT_SCHEMA);
-
         expect(mockGenerateContent).toHaveBeenCalledWith(PROMPT);
       });
     });
@@ -122,7 +104,7 @@ describe('GeminiClient Unit Test', () => {
 
   describe('Given generateText, When called', () => {
     describe('And Gemini returns a response', () => {
-      test('Then it returns the raw text answer', async () => {
+      test('Then it calls the model with the system instruction and returns the raw text answer', async () => {
         mockGenerateContent.mockResolvedValueOnce({
           response: { text: () => LLM_ANSWER },
         });
@@ -130,28 +112,10 @@ describe('GeminiClient Unit Test', () => {
         const result = await sut.generateText(SYSTEM_PROMPT, USER_MESSAGE);
 
         expect(result).toBe(LLM_ANSWER);
-      });
-
-      test('Then it calls getGenerativeModel with gemini-2.5-flash and the system instruction', async () => {
-        mockGenerateContent.mockResolvedValueOnce({
-          response: { text: () => LLM_ANSWER },
-        });
-
-        await sut.generateText(SYSTEM_PROMPT, USER_MESSAGE);
-
         expect(geminiClient.getGenerativeModel).toHaveBeenCalledWith({
           model: 'gemini-2.5-flash',
           systemInstruction: SYSTEM_PROMPT,
         });
-      });
-
-      test('Then it calls generateContent with the user message', async () => {
-        mockGenerateContent.mockResolvedValueOnce({
-          response: { text: () => LLM_ANSWER },
-        });
-
-        await sut.generateText(SYSTEM_PROMPT, USER_MESSAGE);
-
         expect(mockGenerateContent).toHaveBeenCalledWith(USER_MESSAGE);
       });
     });
@@ -171,28 +135,17 @@ describe('GeminiClient Unit Test', () => {
 
   describe('Given generateEmbedding, When called', () => {
     describe('And embedContent succeeds', () => {
-      test('Then it returns the embedding values as a number[]', async () => {
+      test('Then it calls gemini-embedding-001 with structured content and returns the values', async () => {
         mockEmbedContent.mockResolvedValueOnce({ embedding: { values: SAMPLE_EMBEDDING } });
 
         const result = await sut.generateEmbedding(SAMPLE_TEXT);
 
         expect(result).toEqual(SAMPLE_EMBEDDING);
-      });
-
-      test('Then it calls getGenerativeModel with text-embedding-004', async () => {
-        mockEmbedContent.mockResolvedValueOnce({ embedding: { values: SAMPLE_EMBEDDING } });
-
-        await sut.generateEmbedding(SAMPLE_TEXT);
-
-        expect(geminiClient.getGenerativeModel).toHaveBeenCalledWith({ model: 'text-embedding-004' });
-      });
-
-      test('Then it calls embedContent with the provided text', async () => {
-        mockEmbedContent.mockResolvedValueOnce({ embedding: { values: SAMPLE_EMBEDDING } });
-
-        await sut.generateEmbedding(SAMPLE_TEXT);
-
-        expect(mockEmbedContent).toHaveBeenCalledWith(SAMPLE_TEXT);
+        expect(geminiClient.getGenerativeModel).toHaveBeenCalledWith({ model: 'gemini-embedding-001' });
+        expect(mockEmbedContent).toHaveBeenCalledWith({
+          content: { role: 'user', parts: [{ text: SAMPLE_TEXT }] },
+          outputDimensionality: 768,
+        });
       });
     });
 

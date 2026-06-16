@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsNotEmpty,
-  IsOptional,
   IsString,
   IsUrl,
   ValidateIf,
@@ -40,11 +39,10 @@ export class IngestBookmarkDto {
     required: false,
     description: 'Raw text to ingest synchronously. Mutually exclusive with `url`.',
   })
-  @IsOptional()
+  @ValidateIf((o: IngestBookmarkDto) => o.rawText !== undefined || o.url === undefined)
+  @IsXorDefined('url')
   @IsString()
   @IsNotEmpty()
-  @ValidateIf((o: IngestBookmarkDto) => !o.url)
-  @IsXorDefined('url')
   rawText?: string;
 
   @ApiProperty({
@@ -52,8 +50,7 @@ export class IngestBookmarkDto {
     required: false,
     description: 'URL to scrape and ingest asynchronously. Mutually exclusive with `rawText`.',
   })
-  @IsOptional()
+  @ValidateIf((o: IngestBookmarkDto) => o.url !== undefined || o.rawText === undefined)
   @IsUrl({ require_protocol: true })
-  @ValidateIf((o: IngestBookmarkDto) => !o.rawText)
   url?: string;
 }
