@@ -44,6 +44,9 @@ export class AssertUtils {
       thrown = err;
     }
     expect(thrown).toBeInstanceOf(Error);
-    expect((thrown as { code?: string }).code).toBe(expectedCode);
+    // Drizzle wraps the pg error — code lives on the error itself or on its cause
+    const err = thrown as { code?: string; cause?: { code?: string } };
+    const code = err.code ?? err.cause?.code;
+    expect(code).toBe(expectedCode);
   }
 }

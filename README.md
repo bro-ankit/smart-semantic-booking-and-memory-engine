@@ -10,14 +10,16 @@ No hallucinations. No keyword matching. Pure semantic understanding.
 
 1. **Accepts** raw text directly, or scrapes a URL asynchronously via a job queue
 2. **Enriches** content using Gemini 2.5 Flash — extracting a summary, tags, and action items
-3. **Embeds** the content into a 768-dimensional vector space (pgvector)
-4. **Retrieves** semantically similar bookmarks and generates grounded answers to questions
+3. **Reviews** AI output via a human-in-the-loop queue before embedding — corrections are stored as training signal
+4. **Embeds** the content into a 768-dimensional vector space (pgvector)
+5. **Retrieves** semantically similar bookmarks and generates grounded answers to questions
+6. **Measures** answer quality automatically via an LLM-as-judge eval harness
 
 ---
 
 ## System Architecture
 
-Three core layers: an ingestion pipeline, a retrieval surface, and a resilience layer protecting all external calls.
+Four core layers: an ingestion pipeline with human review, a retrieval surface, an eval harness, and a resilience layer protecting all external calls.
 
 ---
 
@@ -41,12 +43,12 @@ Static pages (GitHub, documentation, blog posts) never touch Chrome. JavaScript-
 #### Ingestion State Machine
 
 ```
-PENDING ──► PROCESSING ──► COMPLETED
-                       ╲
-                        ──► FAILED  (errorMessage stored)
+PENDING ──► PROCESSING ──► REVIEW_PENDING ──► COMPLETED
+                       ╲                  ╲
+                        ──► FAILED          ──► FAILED (HUMAN_REJECTED)
 ```
 
-A `PENDING` row is written **before** any scraping or LLM call. Every attempt is observable from the start — a stuck `PROCESSING` row indicates a crashed process; a `FAILED` row carries the error message.
+A `PENDING` row is written **before** any scraping or LLM call. Every attempt is observable from the start. Enrichment completes to `REVIEW_PENDING` — a human approves, edits, or rejects before embedding runs. Every AI-vs-human delta is stored in the `corrections` table as future fine-tuning signal.
 
 #### Execution Sequence — rawText
 
@@ -96,7 +98,35 @@ The question is embedded and used to retrieve the top 3 semantically relevant bo
 
 ---
 
-### Layer 3 — Resilience Layer
+### Layer 3 — Eval Harness
+
+`POST /api/v1/evals/run` runs a repeatable quality measurement against the golden dataset:
+
+```
+POST /api/v1/evals/run
+  │
+  ├─ EvalGoldenSetService.load()            — reads evals/golden-set.json (15 cases)
+  │
+  └─ For each golden case:
+       ├─ RAGService.execute(question)       — semantic search + Gemini answer + context chunks
+       ├─ EvalJudgeService.score()           — Gemini 2.5 Flash as judge
+       │    └─ Returns { relevance, faithfulness, reasoning }
+       └─ EvalsRepository.insert()           — persist to eval_runs table
+  │
+  └─ Return summary
+       ├─ avgRelevance, avgFaithfulness
+       └─ weakCases (scored below 0.7)       — your regression watchlist
+```
+
+The judge is a separate Gemini call that rates two orthogonal dimensions:
+- **relevance** — does the answer address the question and expected topics?
+- **faithfulness** — are all claims grounded in the retrieved context (no hallucination)?
+
+Run before and after any retrieval or prompt change to prove it helped.
+
+---
+
+### Layer 4 — Resilience Layer
 
 ![Resilience Layer](docs/diagrams/resilience-loop.png)
 
@@ -124,6 +154,7 @@ The question is embedded and used to retrieve the top 3 semantically relevant bo
 | Scraping — Tier 2 | Puppeteer (headless Chrome, Docker-compatible) |
 | Resilience | cockatiel (retry + circuit breaker) |
 | Architecture | NestJS CQRS (`CommandBus`) |
+| Eval Harness | LLM-as-judge (Gemini 2.5 Flash) + `eval_runs` table + golden-set.json |
 
 ---
 
@@ -244,6 +275,41 @@ Content-Type: application/json
 }
 ```
 
+### Human Review Queue
+
+```http
+GET /api/v1/bookmarks/review
+```
+
+Returns all bookmarks in `REVIEW_PENDING` state with AI-generated summaries and tags.
+
+```http
+PATCH /api/v1/bookmarks/:id/review
+Content-Type: application/json
+
+{ "approved": true, "editedSummary": "Better description.", "editedTags": ["kafka"] }
+```
+
+`approved: false` → transitions to `FAILED` with reason `HUMAN_REJECTED`. Human edits (if any) replace AI output before embedding. Every correction is stored in the `corrections` table.
+
+### Run Evals
+
+```http
+POST /api/v1/evals/run
+```
+
+```json
+{
+  "totalCases": 15,
+  "avgRelevance": 0.84,
+  "avgFaithfulness": 0.91,
+  "weakCases": [
+    { "question": "What are the tradeoffs between sync and async ingestion?", "relevanceScore": 0.65, "faithfulnessScore": 0.72 }
+  ],
+  "runs": [...]
+}
+```
+
 ---
 
 ## Design Decisions
@@ -260,3 +326,6 @@ Full records in [`docs/decisions/`](docs/decisions/). Highlights:
 | [013](docs/decisions/013-async-url-ingestion-bullmq.md) | BullMQ queue for URL ingestion | Non-blocking HTTP response; durable across restarts; built-in retry |
 | [014](docs/decisions/014-tiered-scraping-strategy.md) | Cheerio/Readability first, Puppeteer fallback | Puppeteer only when genuinely needed — saves ~2–5s and 250MB RAM per static page |
 | [015](docs/decisions/015-cqrs-command-handler-and-ingest-module.md) | CQRS command handler for ingestion branching | Thin controller; no circular module dependencies |
+| [016](docs/decisions/016-human-review-before-embedding.md) | Human review gate before embedding | Vector store only ever holds human-approved content; corrections become training signal |
+| [017](docs/decisions/017-llm-as-judge-eval-harness.md) | LLM-as-judge over keyword matching | Measures relevance and faithfulness independently; catches hallucinations that keywords cannot |
+| [018](docs/decisions/018-plaintToInstance-in-handlers-not-controllers.md) | `plainToInstance` in handlers, not controllers | `CommandBus.execute()` returns `any` — only handlers have the typed return to safely drive the conversion |

@@ -29,6 +29,13 @@
       "when": 1781598745013,
       "tag": "0003_cloudy_madripoor",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782208841962,
+      "tag": "0004_shiny_captain_universe",
+      "breakpoints": true
     }
   ]
 }

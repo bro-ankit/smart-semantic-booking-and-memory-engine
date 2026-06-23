@@ -83,17 +83,17 @@ describe('CorrectionsRepository IT', () => {
     });
 
     describe('When the referenced bookmark does not exist', () => {
-      test('Then it throws a foreign key constraint error', async () => {
-        await AssertUtils.assertThrows(() =>
+      test('Then it throws a PostgreSQL FK violation error (23503)', async () => {
+        const action = () =>
           sut.insert({
             bookmarkId: '00000000-0000-0000-0000-000000000000',
             aiSummary: 'some summary',
             humanSummary: null,
             aiTags: ['tag'],
             humanTags: null,
-          }),
-          `Failed query: insert into "corrections" ("id", "bookmark_id", "ai_summary", "human_summary", "ai_tags", "human_tags", "created_at") values (default, $1, $2, $3, $4, $5, default) returning "id", "bookmark_id", "ai_summary", "human_summary", "ai_tags", "human_tags", "created_at"\nparams: 00000000-0000-0000-0000-000000000000,some summary,,{"tag"},`
-        );
+          });
+
+        await AssertUtils.assertDatabaseError(action, '23503');
       });
     });
   });

@@ -28,5 +28,6 @@ import { REVIEW_HANDLERS } from './review';
     ...REVIEW_HANDLERS,
   ],
   controllers: [BookmarksController, SearchController, RAGController],
+  exports: [RAGService],
 })
 export class BookmarksModule {}
