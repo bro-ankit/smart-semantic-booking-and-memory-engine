@@ -99,7 +99,37 @@ The question is embedded and used to retrieve the top 3 semantically relevant bo
 
 ---
 
-### Layer 3 — Eval Harness
+### Layer 3 — Agent Loop
+
+![Agent Run](docs/diagrams/agent-run.png)
+
+`POST /api/v1/agent/run` upgrades the ask surface into an agent that can take actions — not just answer questions.
+
+```
+POST /api/v1/agent/run
+  │
+  └─ Control loop (max 5 iterations):
+       ├─ Send history + tool definitions to Gemini 2.5 Flash
+       ├─ Gemini returns functionCall intent (not the result — just the name + args)
+       ├─ AgentToolExecutorService.execute()
+       │    ├─ searchBookmarks(query)  — runs semantic search
+       │    ├─ createTodo(bookmarkId, task)  — inserts into todos table
+       │    └─ summarizeTag(tag)  — all bookmarks for a tag + synthesised summary
+       ├─ Append tool result to history → next iteration
+       └─ Gemini returns final_answer → return to caller
+
+  If loop hits max iterations: return partial result with truncated: true
+  Tool errors reported back to model rather than crashing the loop
+  Full toolCallTrace logged per run (observability)
+```
+
+Gemini native function calling (`tools` parameter) is used — the model decides which tool to call; the control loop executes it. No prompt-engineering simulation.
+
+---
+
+### Layer 4 — Eval Harness
+
+![Eval Harness](docs/diagrams/eval-harness.png)
 
 `POST /api/v1/evals/run` runs a repeatable quality measurement against the golden dataset:
 
@@ -127,7 +157,7 @@ Run before and after any retrieval or prompt change to prove it helped.
 
 ---
 
-### Layer 4 — Resilience Layer
+### Layer 5 — Resilience Layer
 
 ![Resilience Layer](docs/diagrams/resilience-loop.png)
 
