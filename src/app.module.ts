@@ -5,6 +5,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { DatabaseModule } from './database/database.module';
 import { AiModule } from './ai/ai.module';
 import { BookmarksModule } from './bookmarks/bookmarks.module';
+import { EvalsModule } from './evals/evals.module';
 import { ResilienceModule } from './resilience';
 import { ENV_VARIABLES } from './constants/env.constants';
 
@@ -34,6 +35,7 @@ import { ENV_VARIABLES } from './constants/env.constants';
     DatabaseModule,
     AiModule,
     BookmarksModule,
+    EvalsModule,
   ],
 })
 export class AppModule { }

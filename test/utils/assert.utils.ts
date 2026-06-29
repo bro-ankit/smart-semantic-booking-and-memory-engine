@@ -16,4 +16,37 @@ export class AssertUtils {
     expect((thrown as HttpException).message).toBe(expectedMessage);
     expect((thrown as HttpException).getStatus()).toBe(expectedStatusCode);
   }
+
+  static async assertThrows(
+    action: () => Promise<unknown>,
+    expectedMessage?: string,
+  ): Promise<void> {
+    let thrown: unknown;
+    try {
+      await action();
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    if (expectedMessage !== undefined) {
+      expect((thrown as Error).message).toBe(expectedMessage);
+    }
+  }
+
+  static async assertDatabaseError(
+    action: () => Promise<unknown>,
+    expectedCode: string,
+  ): Promise<void> {
+    let thrown: unknown;
+    try {
+      await action();
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    // Drizzle wraps the pg error — code lives on the error itself or on its cause
+    const err = thrown as { code?: string; cause?: { code?: string } };
+    const code = err.code ?? err.cause?.code;
+    expect(code).toBe(expectedCode);
+  }
 }

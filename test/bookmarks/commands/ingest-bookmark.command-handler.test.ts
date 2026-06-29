@@ -6,17 +6,19 @@ import { IngestBookmarkCommand } from '../../../src/bookmarks/commands/ingest-bo
 import { IngestService } from '../../../src/ingest/ingest.service';
 import { BookmarksRepository } from '../../../src/bookmarks/bookmarks.repository';
 import { SCRAPING_QUEUE, type ScrapingJobData } from '../../../src/scraper/scraper.constants';
+import { AssertUtils } from '../../utils/assert.utils';
 import { mockBookmarkSelect } from '../../__mocks__/bookmark.mock';
+
+const BOOKMARK_ID = 'bookmark-uuid-001';
+const URL = 'https://example.com/kafka-partitioning';
+const RAW_TEXT = 'Kafka partitioning is a mechanism for distributing data across brokers.';
+const CREATED_AT = new Date('2026-05-29T00:00:00Z');
 
 describe('IngestBookmarkCommandHandler Unit Test', () => {
   let sut: IngestBookmarkCommandHandler;
   let ingestService: jest.Mocked<IngestService>;
   let bookmarksRepository: jest.Mocked<BookmarksRepository>;
   let scrapingQueue: jest.Mocked<Queue<ScrapingJobData>>;
-
-  const BOOKMARK_ID = 'bookmark-uuid-001';
-  const URL = 'https://example.com/kafka-partitioning';
-  const RAW_TEXT = 'Kafka partitioning is a mechanism for distributing data across brokers.';
 
   const PENDING_BOOKMARK = mockBookmarkSelect({ id: BOOKMARK_ID, originalUrl: URL, status: 'PENDING' });
   const COMPLETED_BOOKMARK = mockBookmarkSelect({
@@ -42,29 +44,34 @@ describe('IngestBookmarkCommandHandler Unit Test', () => {
     describe('And the insert and enqueue both succeed', () => {
       beforeEach(() => {
         bookmarksRepository.insert.mockResolvedValue(PENDING_BOOKMARK);
-        scrapingQueue.add.mockResolvedValue({} as any);
+        scrapingQueue.add.mockResolvedValue({} as never);
       });
 
-      test('Then it inserts a PENDING bookmark with the URL as originalUrl', async () => {
-        await sut.execute(new IngestBookmarkCommand({ url: URL }));
+      test('Then it inserts a PENDING bookmark, enqueues the scrape job, skips ingestService, and returns the DTO', async () => {
+        const result = await sut.execute(new IngestBookmarkCommand({ url: URL }));
 
-        expect(bookmarksRepository.insert).toHaveBeenCalledWith({
-          originalUrl: URL,
-          status: 'PENDING',
-        });
-      });
-
-      test('Then it enqueues a scrape-url job with the bookmark id and url', async () => {
-        await sut.execute(new IngestBookmarkCommand({ url: URL }));
-
+        expect(bookmarksRepository.insert).toHaveBeenCalledWith({ originalUrl: URL, status: 'PENDING' });
         expect(scrapingQueue.add).toHaveBeenCalledWith(
           'scrape-url',
           { bookmarkId: BOOKMARK_ID, url: URL },
           { jobId: BOOKMARK_ID },
         );
+        expect(ingestService.ingest).not.toHaveBeenCalled();
+        expect(result).toEqual({
+          id: BOOKMARK_ID,
+          originalUrl: URL,
+          contentSummary: '',
+          tags: [],
+          status: 'PENDING',
+          errorMessage: null,
+          aiContentSummary: '',
+          aiTags: [],
+          aiActionItems: [],
+          createdAt: CREATED_AT,
+        });
       });
 
-      test('Then the job is enqueued after the bookmark is inserted', async () => {
+      test('Then the scrape job is enqueued after the bookmark is inserted', async () => {
         await sut.execute(new IngestBookmarkCommand({ url: URL }));
 
         const insertOrder = bookmarksRepository.insert.mock.invocationCallOrder[0]!;
@@ -72,81 +79,67 @@ describe('IngestBookmarkCommandHandler Unit Test', () => {
 
         expect(enqueueOrder).toBeGreaterThan(insertOrder);
       });
-
-      test('Then it does not call ingestService', async () => {
-        await sut.execute(new IngestBookmarkCommand({ url: URL }));
-        expect(ingestService.ingest).not.toHaveBeenCalled();
-      });
-
-      test('Then it returns the PENDING bookmark', async () => {
-        const result = await sut.execute(new IngestBookmarkCommand({ url: URL }));
-        expect(result).toEqual(PENDING_BOOKMARK);
-      });
     });
 
     describe('And the repository insert fails', () => {
-      beforeEach(() => {
-        bookmarksRepository.insert.mockRejectedValue(new Error('DB connection lost'));
-      });
-
       test('Then it propagates the error without enqueueing', async () => {
-        await expect(
-          sut.execute(new IngestBookmarkCommand({ url: URL })),
-        ).rejects.toThrow('DB connection lost');
+        bookmarksRepository.insert.mockRejectedValue(new Error('DB connection lost'));
 
+        await AssertUtils.assertThrows(
+          () => sut.execute(new IngestBookmarkCommand({ url: URL })),
+          'DB connection lost',
+        );
         expect(scrapingQueue.add).not.toHaveBeenCalled();
       });
     });
 
     describe('And the queue add fails', () => {
-      beforeEach(() => {
+      test('Then it propagates the error', async () => {
         bookmarksRepository.insert.mockResolvedValue(PENDING_BOOKMARK);
         scrapingQueue.add.mockRejectedValue(new Error('Redis unavailable'));
-      });
 
-      test('Then it propagates the error', async () => {
-        await expect(
-          sut.execute(new IngestBookmarkCommand({ url: URL })),
-        ).rejects.toThrow('Redis unavailable');
+        await AssertUtils.assertThrows(
+          () => sut.execute(new IngestBookmarkCommand({ url: URL })),
+          'Redis unavailable',
+        );
       });
     });
   });
 
   describe('Given execute, When called with rawText', () => {
     describe('And ingestService succeeds', () => {
-      beforeEach(() => {
-        ingestService.ingest.mockResolvedValue(COMPLETED_BOOKMARK);
-      });
-
-      test('Then it delegates to ingestService with the full dto', async () => {
+      test('Then it delegates to ingestService, skips the queue, and returns the DTO', async () => {
         const dto = { rawText: RAW_TEXT };
-        await sut.execute(new IngestBookmarkCommand(dto));
+        ingestService.ingest.mockResolvedValue(COMPLETED_BOOKMARK);
+
+        const result = await sut.execute(new IngestBookmarkCommand(dto));
 
         expect(ingestService.ingest).toHaveBeenCalledWith(dto);
-      });
-
-      test('Then it does not insert a bookmark or touch the queue', async () => {
-        await sut.execute(new IngestBookmarkCommand({ rawText: RAW_TEXT }));
-
         expect(bookmarksRepository.insert).not.toHaveBeenCalled();
         expect(scrapingQueue.add).not.toHaveBeenCalled();
-      });
-
-      test('Then it returns the completed bookmark from ingestService', async () => {
-        const result = await sut.execute(new IngestBookmarkCommand({ rawText: RAW_TEXT }));
-        expect(result).toEqual(COMPLETED_BOOKMARK);
+        expect(result).toEqual({
+          id: BOOKMARK_ID,
+          originalUrl: RAW_TEXT,
+          contentSummary: 'A guide to Kafka partitioning for high-throughput distributed systems.',
+          tags: ['kafka', 'partitioning', 'distributed-systems'],
+          status: 'COMPLETED',
+          errorMessage: null,
+          aiContentSummary: '',
+          aiTags: [],
+          aiActionItems: [],
+          createdAt: CREATED_AT,
+        });
       });
     });
 
     describe('And ingestService throws', () => {
-      beforeEach(() => {
-        ingestService.ingest.mockRejectedValue(new Error('Gemini enrichment failed'));
-      });
-
       test('Then it propagates the error', async () => {
-        await expect(
-          sut.execute(new IngestBookmarkCommand({ rawText: RAW_TEXT })),
-        ).rejects.toThrow('Gemini enrichment failed');
+        ingestService.ingest.mockRejectedValue(new Error('Gemini enrichment failed'));
+
+        await AssertUtils.assertThrows(
+          () => sut.execute(new IngestBookmarkCommand({ rawText: RAW_TEXT })),
+          'Gemini enrichment failed',
+        );
       });
     });
   });

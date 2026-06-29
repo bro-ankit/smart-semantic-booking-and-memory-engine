@@ -18,25 +18,25 @@ describe('IngestService Unit Test', () => {
   let bookmarksRepository: jest.Mocked<BookmarksRepository>;
   let todosRepository: jest.Mocked<TodosRepository>;
 
-  const RAW_TEXT = 'https://example.com/kafka-partitioning-guide';
-
-  const ENRICHMENT: BookmarkEnrichment = {
-    contentSummary: 'A guide to Kafka partitioning strategies for high-throughput systems.',
-    tags: ['kafka', 'partitioning', 'distributed-systems'],
-    actionItems: ['Read the Kafka docs', 'Set up local Kafka cluster'],
-  };
-
+  const RAW_TEXT = 'Kafka partitioning distributes data across brokers.';
+  const BOOKMARK_ID = 'abc-123';
   const EMBEDDING = new Array(768).fill(0.01);
 
-  const PENDING_BOOKMARK = mockBookmarkSelect({ id: 'abc-123', originalUrl: RAW_TEXT, status: 'PENDING' });
-  const COMPLETED_BOOKMARK = mockBookmarkSelect({
-    id: 'abc-123',
-    originalUrl: RAW_TEXT,
-    contentSummary: ENRICHMENT.contentSummary,
-    tags: ENRICHMENT.tags,
-    embedding: EMBEDDING,
-    status: 'COMPLETED',
+  const ENRICHMENT: BookmarkEnrichment = {
+    contentSummary: 'A guide to Kafka partitioning.',
+    tags: ['kafka', 'partitioning'],
+    actionItems: ['Read Kafka docs', 'Set up cluster'],
+  };
+
+  const PENDING = mockBookmarkSelect({ id: BOOKMARK_ID, status: 'PENDING' });
+  const REVIEW_PENDING = mockBookmarkSelect({
+    id: BOOKMARK_ID,
+    status: 'REVIEW_PENDING',
+    aiContentSummary: ENRICHMENT.contentSummary,
+    aiTags: ENRICHMENT.tags,
+    aiActionItems: ENRICHMENT.actionItems,
   });
+  const COMPLETED = mockBookmarkSelect({ id: BOOKMARK_ID, status: 'COMPLETED', embedding: EMBEDDING });
 
   beforeAll(() => {
     const { unit, unitRef } = TestBed.create(IngestService).compile();
@@ -50,129 +50,75 @@ describe('IngestService Unit Test', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  describe('Given ingest, When called', () => {
-    describe('And the full pipeline succeeds', () => {
-      beforeEach(() => {
-        bookmarksRepository.insert.mockResolvedValue(PENDING_BOOKMARK);
-        bookmarksRepository.updateStatus.mockResolvedValue(undefined);
-        bookmarksRepository.updateEnrichment.mockResolvedValue(COMPLETED_BOOKMARK);
-        enrichmentService.enrich.mockResolvedValue(ENRICHMENT);
-        aiClient.generateEmbedding.mockResolvedValue(EMBEDDING);
-        transactionService.execute.mockImplementation((fn) => fn());
-        todosRepository.insertMany.mockResolvedValue(undefined);
+  describe('Given ingest, When enrichment succeeds', () => {
+    test('Then it inserts PENDING, transitions to PROCESSING, saves AI output as REVIEW_PENDING, and skips embedding', async () => {
+      bookmarksRepository.insert.mockResolvedValue(PENDING);
+      bookmarksRepository.updateStatus.mockResolvedValue(undefined);
+      bookmarksRepository.updateWithAiEnrichment.mockResolvedValue(REVIEW_PENDING);
+      enrichmentService.enrich.mockResolvedValue(ENRICHMENT);
+
+      const result = await sut.ingest({ rawText: RAW_TEXT });
+
+      expect(bookmarksRepository.insert).toHaveBeenCalledWith({ originalUrl: RAW_TEXT, status: 'PENDING' });
+      expect(bookmarksRepository.updateStatus).toHaveBeenCalledWith(BOOKMARK_ID, 'PROCESSING');
+      expect(enrichmentService.enrich).toHaveBeenCalledWith(RAW_TEXT);
+      expect(bookmarksRepository.updateWithAiEnrichment).toHaveBeenCalledWith(BOOKMARK_ID, {
+        aiContentSummary: ENRICHMENT.contentSummary,
+        aiTags: ENRICHMENT.tags,
+        aiActionItems: ENRICHMENT.actionItems,
       });
-
-      test('Then it inserts a PENDING bookmark before calling the LLM', async () => {
-        await sut.ingest({ rawText: RAW_TEXT });
-
-        expect(bookmarksRepository.insert).toHaveBeenCalledWith({
-          originalUrl: RAW_TEXT,
-          status: 'PENDING',
-        });
-      });
-
-      test('Then it transitions to PROCESSING before enrichment', async () => {
-        await sut.ingest({ rawText: RAW_TEXT });
-
-        const insertOrder = bookmarksRepository.insert.mock.invocationCallOrder[0]!;
-        const processingOrder = bookmarksRepository.updateStatus.mock.invocationCallOrder[0]!;
-        const enrichOrder = enrichmentService.enrich.mock.invocationCallOrder[0]!;
-
-        expect(processingOrder).toBeGreaterThan(insertOrder);
-        expect(enrichOrder).toBeGreaterThan(processingOrder);
-        expect(bookmarksRepository.updateStatus).toHaveBeenCalledWith(PENDING_BOOKMARK.id, 'PROCESSING');
-      });
-
-      test('Then it calls enrichment with the raw text', async () => {
-        await sut.ingest({ rawText: RAW_TEXT });
-        expect(enrichmentService.enrich).toHaveBeenCalledWith(RAW_TEXT);
-      });
-
-      test('Then it builds the searchable string and passes it to the embedding client', async () => {
-        await sut.ingest({ rawText: RAW_TEXT });
-
-        const expectedSearchable = `${RAW_TEXT} ${ENRICHMENT.contentSummary} ${ENRICHMENT.tags.join(' ')}`;
-        expect(aiClient.generateEmbedding).toHaveBeenCalledWith(expectedSearchable);
-      });
-
-      test('Then it updates the bookmark with enrichment data and COMPLETED status inside a transaction', async () => {
-        await sut.ingest({ rawText: RAW_TEXT });
-
-        expect(transactionService.execute).toHaveBeenCalledTimes(1);
-        expect(bookmarksRepository.updateEnrichment).toHaveBeenCalledWith(PENDING_BOOKMARK.id, {
-          contentSummary: ENRICHMENT.contentSummary,
-          tags: ENRICHMENT.tags,
-          embedding: EMBEDDING,
-          status: 'COMPLETED',
-        });
-      });
-
-      test('Then it inserts todos linked to the bookmark inside the same transaction', async () => {
-        await sut.ingest({ rawText: RAW_TEXT });
-
-        expect(todosRepository.insertMany).toHaveBeenCalledWith([
-          { bookmarkId: PENDING_BOOKMARK.id, task: 'Read the Kafka docs' },
-          { bookmarkId: PENDING_BOOKMARK.id, task: 'Set up local Kafka cluster' },
-        ]);
-      });
-
-      test('Then it returns the completed bookmark', async () => {
-        const result = await sut.ingest({ rawText: RAW_TEXT });
-        expect(result).toEqual(COMPLETED_BOOKMARK);
-      });
+      expect(aiClient.generateEmbedding).not.toHaveBeenCalled();
+      expect(result).toEqual(REVIEW_PENDING);
     });
+  });
 
-    describe('And enrichment fails', () => {
-      beforeEach(() => {
-        bookmarksRepository.insert.mockResolvedValue(PENDING_BOOKMARK);
-        bookmarksRepository.updateStatus.mockResolvedValue(undefined);
-        enrichmentService.enrich.mockRejectedValue(
-          new InternalServerErrorException('Gemini API call failed'),
-        );
-      });
+  describe('Given ingest, When enrichment fails', () => {
+    test('Then it marks FAILED with the error message and rethrows without saving enrichment data', async () => {
+      bookmarksRepository.insert.mockResolvedValue(PENDING);
+      bookmarksRepository.updateStatus.mockResolvedValue(undefined);
+      enrichmentService.enrich.mockRejectedValue(new InternalServerErrorException('Gemini API call failed'));
 
-      test('Then it marks the bookmark as FAILED with the error message and rethrows', async () => {
-        await expect(sut.ingest({ rawText: RAW_TEXT })).rejects.toThrow('Gemini API call failed');
+      await expect(sut.ingest({ rawText: RAW_TEXT })).rejects.toThrow('Gemini API call failed');
 
-        expect(bookmarksRepository.updateStatus).toHaveBeenCalledWith(
-          PENDING_BOOKMARK.id,
-          'FAILED',
-          'Gemini API call failed',
-        );
-      });
-
-      test('Then it does not write enrichment data or todos', async () => {
-        await sut.ingest({ rawText: RAW_TEXT }).catch(() => null);
-        expect(bookmarksRepository.updateEnrichment).not.toHaveBeenCalled();
-        expect(todosRepository.insertMany).not.toHaveBeenCalled();
-      });
+      expect(bookmarksRepository.updateStatus).toHaveBeenCalledWith(BOOKMARK_ID, 'FAILED', 'Gemini API call failed');
+      expect(bookmarksRepository.updateWithAiEnrichment).not.toHaveBeenCalled();
     });
+  });
 
-    describe('And embedding generation fails', () => {
-      beforeEach(() => {
-        bookmarksRepository.insert.mockResolvedValue(PENDING_BOOKMARK);
-        bookmarksRepository.updateStatus.mockResolvedValue(undefined);
-        enrichmentService.enrich.mockResolvedValue(ENRICHMENT);
-        aiClient.generateEmbedding.mockRejectedValue(
-          new InternalServerErrorException('Embedding API call failed'),
-        );
+  describe('Given embedAndComplete, When all steps succeed', () => {
+    test('Then it embeds, updates to COMPLETED, inserts todos in a transaction, and returns the result', async () => {
+      const SUMMARY = 'Approved summary.';
+      const TAGS = ['kafka', 'approved'];
+      const ITEMS = ['Read Kafka docs', 'Set up cluster'];
+
+      aiClient.generateEmbedding.mockResolvedValue(EMBEDDING);
+      transactionService.execute.mockImplementation((fn) => fn());
+      bookmarksRepository.updateEnrichment.mockResolvedValue(COMPLETED);
+      todosRepository.insertMany.mockResolvedValue(undefined);
+
+      const result = await sut.embedAndComplete(BOOKMARK_ID, SUMMARY, TAGS, ITEMS);
+
+      expect(aiClient.generateEmbedding).toHaveBeenCalledWith(`${SUMMARY} ${TAGS.join(' ')}`);
+      expect(transactionService.execute).toHaveBeenCalledTimes(1);
+      expect(bookmarksRepository.updateEnrichment).toHaveBeenCalledWith(BOOKMARK_ID, {
+        contentSummary: SUMMARY, tags: TAGS, embedding: EMBEDDING, status: 'COMPLETED',
       });
+      expect(todosRepository.insertMany).toHaveBeenCalledWith([
+        { bookmarkId: BOOKMARK_ID, task: 'Read Kafka docs' },
+        { bookmarkId: BOOKMARK_ID, task: 'Set up cluster' },
+      ]);
+      expect(result).toEqual(COMPLETED);
+    });
+  });
 
-      test('Then it marks the bookmark as FAILED with the error message and rethrows', async () => {
-        await expect(sut.ingest({ rawText: RAW_TEXT })).rejects.toThrow('Embedding API call failed');
+  describe('Given embedAndComplete, When embedding fails', () => {
+    test('Then it propagates the error without touching the database', async () => {
+      aiClient.generateEmbedding.mockRejectedValue(new InternalServerErrorException('Embedding API failed'));
 
-        expect(bookmarksRepository.updateStatus).toHaveBeenCalledWith(
-          PENDING_BOOKMARK.id,
-          'FAILED',
-          'Embedding API call failed',
-        );
-      });
+      await expect(sut.embedAndComplete(BOOKMARK_ID, 'summary', ['tag'], [])).rejects.toThrow('Embedding API failed');
 
-      test('Then it does not write enrichment data or todos', async () => {
-        await sut.ingest({ rawText: RAW_TEXT }).catch(() => null);
-        expect(bookmarksRepository.updateEnrichment).not.toHaveBeenCalled();
-        expect(todosRepository.insertMany).not.toHaveBeenCalled();
-      });
+      expect(bookmarksRepository.updateEnrichment).not.toHaveBeenCalled();
+      expect(todosRepository.insertMany).not.toHaveBeenCalled();
     });
   });
 });

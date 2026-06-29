@@ -6,10 +6,12 @@ import { RAGService } from './rag/rag.service';
 import { BookmarksController } from './bookmarks.controller';
 import { SearchController } from './search/search.controller';
 import { RAGController } from './rag/rag.controller';
+import { CorrectionsRepository } from './corrections.repository';
 import { ScraperModule } from '../scraper/scraper.module';
 import { IngestModule } from '../ingest/ingest.module';
 import { SCRAPING_QUEUE } from '../scraper/scraper.constants';
 import { BOOKMARK_COMMAND_HANDLERS } from './commands';
+import { REVIEW_HANDLERS } from './review';
 
 @Module({
   imports: [
@@ -21,8 +23,11 @@ import { BOOKMARK_COMMAND_HANDLERS } from './commands';
   providers: [
     SearchService,
     RAGService,
+    CorrectionsRepository,
     ...BOOKMARK_COMMAND_HANDLERS,
+    ...REVIEW_HANDLERS,
   ],
   controllers: [BookmarksController, SearchController, RAGController],
+  exports: [RAGService],
 })
 export class BookmarksModule {}

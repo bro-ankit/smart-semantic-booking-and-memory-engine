@@ -4,15 +4,10 @@ import { AI_CLIENT } from '../ai/ai.constants';
 import type { IAiClient } from '../ai/ai.interface';
 import { DrizzleTransactionService } from '../database/drizzle-transaction.service';
 import { EnrichmentService } from '../bookmarks/enrichment/enrichment.service';
-import type { BookmarkEnrichment } from '../bookmarks/enrichment/enrichment.zod';
 import { BookmarksRepository } from '../bookmarks/bookmarks.repository';
 import { TodosRepository } from '../bookmarks/todos.repository';
 import type { BookmarkSelect } from '../schema/bookmarks.schema';
 import type { IngestBookmarkDto } from '../bookmarks/dto/ingest-bookmark.dto';
-
-function buildSearchableString(rawText: string, enrichment: BookmarkEnrichment): string {
-  return `${rawText} ${enrichment.contentSummary} ${enrichment.tags.join(' ')}`;
-}
 
 function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -45,32 +40,45 @@ export class IngestService {
       await this.bookmarksRepository.updateStatus(bookmarkId, 'PROCESSING');
 
       const enrichment = await this.enrichmentService.enrich(rawText);
-      const embedding = await this.aiClient.generateEmbedding(
-        buildSearchableString(rawText, enrichment),
-      );
-
-      const completed = await this.transactionService.execute(async () => {
-        const updated = await this.bookmarksRepository.updateEnrichment(bookmarkId, {
-          contentSummary: enrichment.contentSummary,
-          tags: enrichment.tags,
-          embedding,
-          status: 'COMPLETED',
-        });
-
-        await this.todosRepository.insertMany(
-          enrichment.actionItems.map((task) => ({ bookmarkId, task })),
-        );
-
-        return updated;
+      const paused = await this.bookmarksRepository.updateWithAiEnrichment(bookmarkId, {
+        aiContentSummary: enrichment.contentSummary,
+        aiTags: enrichment.tags,
+        aiActionItems: enrichment.actionItems,
       });
 
-      this.logger.info({ bookmarkId }, 'Ingestion complete');
-      return completed;
+      this.logger.info({ bookmarkId }, 'Enrichment complete — awaiting human review');
+      return paused;
     } catch (err) {
       const errorMessage = toErrorMessage(err);
       this.logger.error({ bookmarkId, err }, 'Ingestion failed, marking FAILED');
       await this.bookmarksRepository.updateStatus(bookmarkId, 'FAILED', errorMessage);
       throw err;
     }
+  }
+
+  async embedAndComplete(
+    bookmarkId: string,
+    finalSummary: string,
+    finalTags: string[],
+    actionItems: string[],
+  ): Promise<BookmarkSelect> {
+    const embedding = await this.aiClient.generateEmbedding(
+      `${finalSummary} ${finalTags.join(' ')}`,
+    );
+
+    return this.transactionService.execute(async () => {
+      const updated = await this.bookmarksRepository.updateEnrichment(bookmarkId, {
+        contentSummary: finalSummary,
+        tags: finalTags,
+        embedding,
+        status: 'COMPLETED',
+      });
+
+      await this.todosRepository.insertMany(
+        actionItems.map((task) => ({ bookmarkId, task })),
+      );
+
+      return updated;
+    });
   }
 }
