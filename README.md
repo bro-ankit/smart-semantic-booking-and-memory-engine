@@ -13,7 +13,8 @@ No hallucinations. No keyword matching. Pure semantic understanding.
 3. **Reviews** AI output via a human-in-the-loop queue before embedding — corrections are stored as training signal
 4. **Embeds** the content into a 768-dimensional vector space (pgvector)
 5. **Retrieves** semantically similar bookmarks and generates grounded answers to questions
-6. **Measures** answer quality automatically via an LLM-as-judge eval harness
+6. **Acts** via an agent that uses Gemini native function calling to search, synthesise, and create todos in a multi-turn control loop
+7. **Measures** answer quality automatically via an LLM-as-judge eval harness
 
 ---
 
@@ -33,10 +34,10 @@ Accepts either raw text (synchronous) or a URL (async via BullMQ). Both paths co
 
 `ScraperService` avoids launching a headless browser for every request:
 
-| Tier | Mechanism | When |
-|------|-----------|------|
-| **1 — Fast** | `fetch` + `@mozilla/readability` | Always attempted first |
-| **2 — Full** | Puppeteer (`networkidle2`) | Only when Tier 1 yields < 200 chars |
+| Tier         | Mechanism                        | When                                |
+| ------------ | -------------------------------- | ----------------------------------- |
+| **1 — Fast** | `fetch` + `@mozilla/readability` | Always attempted first              |
+| **2 — Full** | Puppeteer (`networkidle2`)       | Only when Tier 1 yields < 200 chars |
 
 Static pages (GitHub, documentation, blog posts) never touch Chrome. JavaScript-rendered SPAs fall back to Puppeteer automatically.
 
@@ -132,29 +133,29 @@ Run before and after any retrieval or prompt change to prove it helped.
 
 `@Resilient()` is applied to `EnrichmentService.enrich` and `GeminiClient.generateEmbedding`. Each decorated method gets both a retry policy and a circuit breaker transparently — callers are unaware.
 
-| Policy | Configuration |
-|--------|---------------|
-| Retry | 3 attempts, exponential backoff + full jitter |
+| Policy          | Configuration                                        |
+| --------------- | ---------------------------------------------------- |
+| Retry           | 3 attempts, exponential backoff + full jitter        |
 | Circuit Breaker | Opens at 50% failure rate, probes recovery after 10s |
 
 ---
 
 ## Technology Stack
 
-| Layer | Technology |
-|-------|------------|
-| Runtime | Node.js + TypeScript (NestJS) |
-| Vector DB | PostgreSQL 16 + pgvector |
-| LLM | Gemini 2.5 Flash |
-| Embeddings | gemini-embedding-001 (768 dimensions) |
-| Validation | Zod (structured LLM output) |
-| ORM | Drizzle ORM |
-| Job Queue | BullMQ + Redis 7 |
-| Scraping — Tier 1 | `fetch` + `@mozilla/readability` |
-| Scraping — Tier 2 | Puppeteer (headless Chrome, Docker-compatible) |
-| Resilience | cockatiel (retry + circuit breaker) |
-| Architecture | NestJS CQRS (`CommandBus`) |
-| Eval Harness | LLM-as-judge (Gemini 2.5 Flash) + `eval_runs` table + golden-set.json |
+| Layer             | Technology                                                            |
+| ----------------- | --------------------------------------------------------------------- |
+| Runtime           | Node.js + TypeScript (NestJS)                                         |
+| Vector DB         | PostgreSQL 16 + pgvector                                              |
+| LLM               | Gemini 2.5 Flash                                                      |
+| Embeddings        | gemini-embedding-001 (768 dimensions)                                 |
+| Validation        | Zod (structured LLM output)                                           |
+| ORM               | Drizzle ORM                                                           |
+| Job Queue         | BullMQ + Redis 7                                                      |
+| Scraping — Tier 1 | `fetch` + `@mozilla/readability`                                      |
+| Scraping — Tier 2 | Puppeteer (headless Chrome, Docker-compatible)                        |
+| Resilience        | cockatiel (retry + circuit breaker)                                   |
+| Architecture      | NestJS CQRS (`CommandBus`)                                            |
+| Eval Harness      | LLM-as-judge (Gemini 2.5 Flash) + `eval_runs` table + golden-set.json |
 
 ---
 
@@ -292,6 +293,40 @@ Content-Type: application/json
 
 `approved: false` → transitions to `FAILED` with reason `HUMAN_REJECTED`. Human edits (if any) replace AI output before embedding. Every correction is stored in the `corrections` table.
 
+### Agent — Ask and Act
+
+```http
+POST /api/v1/agent/run
+Content-Type: application/json
+
+{ "question": "What do I know about Kafka? Create a todo to study consumer group rebalancing." }
+```
+
+```json
+{
+  "answer": "You have 2 bookmarks about Kafka. Kafka uses consumer groups for parallel topic processing, assigning each partition to a single consumer. A rebalance mechanism handles partition reassignment when consumers join or leave. I've created a todo to study consumer group rebalancing, linked to your Kafka bookmark.",
+  "truncated": false,
+  "toolCallTrace": [
+    {
+      "iteration": 1,
+      "toolName": "summarizeTag",
+      "args": { "tag": "Kafka" },
+      "result": { "found": 2, "tag": "kafka", "bookmarkIds": ["d080ee4c-..."], "synthesis": "..." }
+    },
+    {
+      "iteration": 2,
+      "toolName": "createTodo",
+      "args": { "task": "Study consumer group rebalancing.", "bookmarkId": "d080ee4c-..." },
+      "result": { "created": true, "todoId": "b58eea84-...", "task": "Study consumer group rebalancing." }
+    }
+  ]
+}
+```
+
+The agent runs a control loop (max 5 iterations). Available tools: `searchBookmarks`, `summarizeTag`, `createTodo`. If the loop hits the limit, `truncated: true` is returned with the partial result. Tool errors are reported back to the model rather than crashing the loop.
+
+---
+
 ### Run Evals
 
 ```http
@@ -316,16 +351,15 @@ POST /api/v1/evals/run
 
 Full records in [`docs/decisions/`](docs/decisions/). Highlights:
 
-| ADR | Decision | Why |
-|-----|----------|-----|
-| [003](docs/decisions/003-ai-client-abstraction.md) | Provider-agnostic `IAiClient` | Swap LLM providers without touching service code |
-| [006](docs/decisions/006-drizzle-transaction-propagation.md) | `DrizzleTransactionContext` via AsyncLocalStorage | Transaction propagation across async boundaries without passing context manually |
-| [009](docs/decisions/009-semantic-search-query.md) | Cosine distance (`<=>`) over L2 | Magnitude-invariant — correct for embeddings regardless of text length |
-| [011](docs/decisions/011-ingestion-state-machine.md) | `PENDING` written before any LLM call | No silent failures; every attempt is observable |
-| [012](docs/decisions/012-resilience-module.md) | `@Resilient()` decorator | One-line fault tolerance; callers are unaware of retries |
-| [013](docs/decisions/013-async-url-ingestion-bullmq.md) | BullMQ queue for URL ingestion | Non-blocking HTTP response; durable across restarts; built-in retry |
-| [014](docs/decisions/014-tiered-scraping-strategy.md) | Cheerio/Readability first, Puppeteer fallback | Puppeteer only when genuinely needed — saves ~2–5s and 250MB RAM per static page |
-| [015](docs/decisions/015-cqrs-command-handler-and-ingest-module.md) | CQRS command handler for ingestion branching | Thin controller; no circular module dependencies |
-| [016](docs/decisions/016-human-review-before-embedding.md) | Human review gate before embedding | Vector store only ever holds human-approved content; corrections become training signal |
-| [017](docs/decisions/017-llm-as-judge-eval-harness.md) | LLM-as-judge over keyword matching | Measures relevance and faithfulness independently; catches hallucinations that keywords cannot |
-| [018](docs/decisions/018-plaintToInstance-in-handlers-not-controllers.md) | `plainToInstance` in handlers, not controllers | `CommandBus.execute()` returns `any` — only handlers have the typed return to safely drive the conversion |
+| ADR                                                                 | Decision                                          | Why                                                                                            |
+| ------------------------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [003](docs/decisions/003-ai-client-abstraction.md)                  | Provider-agnostic `IAiClient`                     | Swap LLM providers without touching service code                                               |
+| [006](docs/decisions/006-drizzle-transaction-propagation.md)        | `DrizzleTransactionContext` via AsyncLocalStorage | Transaction propagation across async boundaries without passing context manually               |
+| [009](docs/decisions/009-semantic-search-query.md)                  | Cosine distance (`<=>`) over L2                   | Magnitude-invariant — correct for embeddings regardless of text length                         |
+| [011](docs/decisions/011-ingestion-state-machine.md)                | `PENDING` written before any LLM call             | No silent failures; every attempt is observable                                                |
+| [012](docs/decisions/012-resilience-module.md)                      | `@Resilient()` decorator                          | One-line fault tolerance; callers are unaware of retries                                       |
+| [013](docs/decisions/013-async-url-ingestion-bullmq.md)             | BullMQ queue for URL ingestion                    | Non-blocking HTTP response; durable across restarts; built-in retry                            |
+| [014](docs/decisions/014-tiered-scraping-strategy.md)               | Cheerio/Readability first, Puppeteer fallback     | Puppeteer only when genuinely needed — saves ~2–5s and 250MB RAM per static page               |
+| [015](docs/decisions/015-cqrs-command-handler-and-ingest-module.md) | CQRS command handler for ingestion branching      | Thin controller; no circular module dependencies                                               |
+| [016](docs/decisions/016-human-review-before-embedding.md)          | Human review gate before embedding                | Vector store only ever holds human-approved content; corrections become training signal        |
+| [017](docs/decisions/017-llm-as-judge-eval-harness.md)              | LLM-as-judge over keyword matching                | Measures relevance and faithfulness independently; catches hallucinations that keywords cannot |

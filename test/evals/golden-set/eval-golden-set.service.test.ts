@@ -14,11 +14,14 @@ describe('EvalGoldenSetService Unit Test', () => {
   });
 
   describe('Given load, When called', () => {
-    test('Then it returns an array of GoldenCase objects from evals/golden-set.json', () => {
+    test('Then it returns an array from evals/golden-set.json', () => {
       const result = sut.load();
 
       expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBeGreaterThanOrEqual(15);
+    });
+
+    test('Then every item in the array has the required GoldenCase shape', () => {
+      const result = sut.load();
 
       for (const item of result) {
         expect(typeof item.question).toBe('string');

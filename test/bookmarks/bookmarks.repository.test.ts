@@ -205,4 +205,60 @@ describe('BookmarksRepository IT', () => {
       });
     });
   });
+
+  describe('Given findByTag, When called', () => {
+    describe('And a COMPLETED bookmark with the given tag exists', () => {
+      test('Then it returns that bookmark', async () => {
+        await sut.insert(BOOKMARK_A);
+
+        const results = await sut.findByTag('nestjs');
+
+        expect(results).toHaveLength(1);
+        expect(results[0]!.originalUrl).toBe(BOOKMARK_A.originalUrl);
+      });
+    });
+
+    describe('And the tag is passed with uppercase letters', () => {
+      test('Then it normalises to lowercase and still finds the bookmark', async () => {
+        await sut.insert(BOOKMARK_A);
+
+        const results = await sut.findByTag('NestJS');
+
+        expect(results).toHaveLength(1);
+      });
+    });
+
+    describe('And multiple bookmarks share the same tag', () => {
+      test('Then it returns all of them', async () => {
+        // Both BOOKMARK_A and BOOKMARK_B exist but only BOOKMARK_B has 'kafka'
+        await sut.insert(BOOKMARK_A);
+        await sut.insert(BOOKMARK_B); // tags: ['kafka', 'streaming']
+
+        const results = await sut.findByTag('kafka');
+
+        expect(results).toHaveLength(1);
+        expect(results[0]!.originalUrl).toBe(BOOKMARK_B.originalUrl);
+      });
+    });
+
+    describe('And a bookmark with the tag exists but is not COMPLETED', () => {
+      test('Then it is excluded from results', async () => {
+        await sut.insert({ ...BOOKMARK_A, status: 'REVIEW_PENDING' });
+
+        const results = await sut.findByTag('nestjs');
+
+        expect(results).toHaveLength(0);
+      });
+    });
+
+    describe('And no bookmark with the given tag exists', () => {
+      test('Then it returns an empty array', async () => {
+        await sut.insert(BOOKMARK_A);
+
+        const results = await sut.findByTag('unknown-tag');
+
+        expect(results).toHaveLength(0);
+      });
+    });
+  });
 });

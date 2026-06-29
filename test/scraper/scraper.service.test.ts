@@ -12,8 +12,8 @@ const SUBSTANTIAL_TEXT = 'Kafka partitioning distributes data across brokers. '.
 const URL = 'https://example.com/kafka-partitioning';
 
 function setupReadability(textContent: string) {
-  MockJSDOM.mockImplementation(() => ({ window: { document: {} } } as any));
-  MockReadability.mockImplementation(() => ({ parse: () => ({ textContent }) } as any));
+  MockJSDOM.mockImplementation(() => ({ window: { document: {} } } as unknown as JSDOM));
+  MockReadability.mockImplementation(() => ({ parse: () => ({ textContent }) } as unknown as Readability<{ textContent: string }>));
 }
 
 function mockFetchResponse(status = 200): Response {
@@ -32,7 +32,7 @@ function setupPuppeteerBrowser(closeFn = jest.fn().mockResolvedValue(undefined))
     content: jest.fn().mockResolvedValue('<html></html>'),
   };
   const browser = { newPage: jest.fn().mockResolvedValue(page), close: closeFn };
-  mockLaunch.mockResolvedValue(browser as any);
+  mockLaunch.mockResolvedValue(browser as unknown as Awaited<ReturnType<typeof mockLaunch>>);
   return { browser, page };
 }
 
@@ -73,10 +73,10 @@ describe('ScraperService Unit Test', () => {
     describe('And fetch returns thin content (JS-rendered stub)', () => {
       test('Then it falls back to Puppeteer', async () => {
         (global.fetch as jest.Mock).mockResolvedValue(mockFetchResponse());
-        MockJSDOM.mockImplementation(() => ({ window: { document: {} } } as any));
+        MockJSDOM.mockImplementation(() => ({ window: { document: {} } } as unknown as JSDOM));
         MockReadability
-          .mockImplementationOnce(() => ({ parse: () => ({ textContent: 'too short' }) } as any))
-          .mockImplementationOnce(() => ({ parse: () => ({ textContent: SUBSTANTIAL_TEXT }) } as any));
+          .mockImplementationOnce(() => ({ parse: () => ({ textContent: 'too short' }) } as unknown as Readability<{ textContent: string }>))
+          .mockImplementationOnce(() => ({ parse: () => ({ textContent: SUBSTANTIAL_TEXT }) } as unknown as Readability<{ textContent: string }>));
         setupPuppeteerBrowser();
 
         const result = await sut.scrape(URL);

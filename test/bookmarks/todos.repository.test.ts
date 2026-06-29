@@ -3,6 +3,7 @@ import { BookmarksRepository } from '../../src/bookmarks/bookmarks.repository';
 import { bookmarksTable } from '../../src/schema/bookmarks.schema';
 import { todosTable } from '../../src/schema/todos.schema';
 import { DrizzleTestEnvironment } from '../helpers/drizzle-test-environment';
+import { AssertUtils } from '../utils/assert.utils';
 
 const BOOKMARK_DATA = {
   originalUrl: 'https://example.com/kafka-guide',
@@ -27,6 +28,28 @@ describe('TodosRepository IT', () => {
 
   afterEach(async () => {
     await env.db.delete(bookmarksTable);
+  });
+
+  describe('Given insert, When called', () => {
+    describe('And a valid bookmarkId and task are provided', () => {
+      test('Then it persists the todo and returns it with a generated id', async () => {
+        const bookmark = await bookmarksRepository.insert(BOOKMARK_DATA);
+
+        const result = await sut.insert({ bookmarkId: bookmark.id, task: 'Study consumer group rebalancing' });
+
+        expect(result.id).toBeDefined();
+        expect(result.bookmarkId).toBe(bookmark.id);
+        expect(result.task).toBe('Study consumer group rebalancing');
+      });
+    });
+
+    describe('And the bookmarkId does not reference an existing bookmark', () => {
+      test('Then it throws a foreign key constraint error', async () => {
+        const action = () => sut.insert({ bookmarkId: '00000000-0000-0000-0000-000000000000', task: 'Orphaned todo' });
+
+        await AssertUtils.assertDatabaseError(action, '23503');
+      });
+    });
   });
 
   describe('Given insertMany, When called', () => {

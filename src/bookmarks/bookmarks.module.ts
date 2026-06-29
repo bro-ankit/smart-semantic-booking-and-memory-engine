@@ -28,6 +28,6 @@ import { REVIEW_HANDLERS } from './review';
     ...REVIEW_HANDLERS,
   ],
   controllers: [BookmarksController, SearchController, RAGController],
-  exports: [RAGService],
+  exports: [RAGService, SearchService],
 })
-export class BookmarksModule {}
+export class BookmarksModule { }

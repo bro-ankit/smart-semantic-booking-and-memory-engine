@@ -19,4 +19,11 @@ export class TodosRepository {
     const client = this.txContext.getClient(this.db);
     await client.insert(todosTable).values(todos);
   }
+
+  async insert(todo: TodoInsert): Promise<{ id: string; task: string; bookmarkId: string }> {
+    this.logger.debug({ bookmarkId: todo.bookmarkId }, 'Inserting single todo');
+    const client = this.txContext.getClient(this.db);
+    const [result] = await client.insert(todosTable).values(todo).returning();
+    return result!;
+  }
 }

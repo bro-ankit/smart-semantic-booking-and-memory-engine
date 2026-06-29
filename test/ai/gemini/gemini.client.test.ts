@@ -3,7 +3,7 @@ import { TestBed } from '@automock/jest';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { GeminiClient } from '../../../src/ai/gemini/gemini.client';
 import { GEMINI_CLIENT } from '../../../src/ai/gemini/gemini.constants';
-import type { AiResponseSchema } from '../../../src/ai/ai.interface';
+import type { AiResponseSchema, AgentMessage, AgentTool } from '../../../src/ai/ai.interface';
 import { AssertUtils } from '../../utils/assert.utils';
 
 const PROMPT = 'Extract structured data from this text about Kafka partitioning.';
@@ -11,6 +11,17 @@ const SAMPLE_TEXT = 'NestJS dependency injection patterns for scalable services'
 const SYSTEM_PROMPT = 'Answer only from the provided context.';
 const USER_MESSAGE = 'How does Kafka handle message ordering?';
 const LLM_ANSWER = 'Kafka preserves order within a partition.';
+
+const AGENT_HISTORY: AgentMessage[] = [
+  { role: 'user', text: 'What do I know about Kafka?' },
+];
+const AGENT_TOOLS: AgentTool[] = [
+  {
+    name: 'searchBookmarks',
+    description: 'Search saved bookmarks semantically.',
+    parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  },
+];
 
 const INPUT_SCHEMA: AiResponseSchema = {
   type: 'object',
@@ -39,6 +50,8 @@ describe('GeminiClient Unit Test', () => {
 
   const mockGenerateContent = jest.fn();
   const mockEmbedContent = jest.fn();
+  const mockSendMessage = jest.fn();
+  const mockStartChat = jest.fn(() => ({ sendMessage: mockSendMessage }));
 
   beforeAll(() => {
     const { unit, unitRef } = TestBed.create(GeminiClient).compile();
@@ -51,6 +64,7 @@ describe('GeminiClient Unit Test', () => {
     geminiClient.getGenerativeModel.mockReturnValue({
       generateContent: mockGenerateContent,
       embedContent: mockEmbedContent,
+      startChat: mockStartChat,
     } as never);
   });
 
@@ -155,6 +169,94 @@ describe('GeminiClient Unit Test', () => {
 
         await AssertUtils.assertError(
           () => sut.generateEmbedding(SAMPLE_TEXT),
+          'Gemini API call failed',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      });
+    });
+  });
+
+  describe('Given generateWithTools, When called', () => {
+    describe('And the model returns a function call', () => {
+      test('Then it returns tool_call with the tool name and args', async () => {
+        mockSendMessage.mockResolvedValueOnce({
+          response: {
+            functionCalls: () => [{ name: 'searchBookmarks', args: { query: 'Kafka' } }],
+            text: () => '',
+          },
+        });
+
+        const result = await sut.generateWithTools(AGENT_HISTORY, AGENT_TOOLS);
+
+        expect(result).toEqual({ type: 'tool_call', toolName: 'searchBookmarks', args: { query: 'Kafka' } });
+        expect(mockStartChat).toHaveBeenCalledWith({ history: [] }); // history slice(0,-1) is empty for single user message
+        expect(mockSendMessage).toHaveBeenCalledWith([{ text: 'What do I know about Kafka?' }]);
+      });
+    });
+
+    describe('And the model returns a text answer', () => {
+      test('Then it returns final_answer with the text', async () => {
+        mockSendMessage.mockResolvedValueOnce({
+          response: {
+            functionCalls: () => [],
+            text: () => LLM_ANSWER,
+          },
+        });
+
+        const result = await sut.generateWithTools(AGENT_HISTORY, AGENT_TOOLS);
+
+        expect(result).toEqual({ type: 'final_answer', text: LLM_ANSWER });
+      });
+    });
+
+    describe('And history includes a prior tool_result', () => {
+      test('Then prior turns go to startChat history and tool_result goes to sendMessage as functionResponse', async () => {
+        mockSendMessage.mockResolvedValueOnce({
+          response: { functionCalls: () => [], text: () => LLM_ANSWER },
+        });
+
+        const historyWithToolResult: AgentMessage[] = [
+          { role: 'user', text: 'What do I know about Kafka?' },
+          { role: 'tool_call', toolName: 'searchBookmarks', args: { query: 'Kafka' } },
+          { role: 'tool_result', toolName: 'searchBookmarks', result: { found: 1 } },
+        ];
+
+        await sut.generateWithTools(historyWithToolResult, AGENT_TOOLS);
+
+        expect(mockStartChat).toHaveBeenCalledWith({
+          history: [
+            { role: 'user', parts: [{ text: 'What do I know about Kafka?' }] },
+            { role: 'model', parts: [{ functionCall: { name: 'searchBookmarks', args: { query: 'Kafka' } } }] },
+          ],
+        });
+        expect(mockSendMessage).toHaveBeenCalledWith([
+          { functionResponse: { name: 'searchBookmarks', response: { result: { found: 1 } } } },
+        ]);
+      });
+    });
+
+    describe('And the last history message has an unexpected role', () => {
+      test('Then it throws 500 before calling the API', async () => {
+        const badHistory: AgentMessage[] = [
+          { role: 'user', text: 'question' },
+          { role: 'tool_call', toolName: 'searchBookmarks', args: { query: 'Kafka' } },
+        ];
+
+        await AssertUtils.assertError(
+          () => sut.generateWithTools(badHistory, AGENT_TOOLS),
+          'generateWithTools called with unexpected last message role: tool_call',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+        expect(mockSendMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('And the Gemini API throws', () => {
+      test('Then it throws 500 with "Gemini API call failed"', async () => {
+        mockSendMessage.mockRejectedValueOnce(new Error('upstream error'));
+
+        await AssertUtils.assertError(
+          () => sut.generateWithTools(AGENT_HISTORY, AGENT_TOOLS),
           'Gemini API call failed',
           HttpStatus.INTERNAL_SERVER_ERROR,
         );

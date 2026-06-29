@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { sql, isNotNull, and, eq } from 'drizzle-orm';
+import { sql, isNotNull, and, eq, arrayContains } from 'drizzle-orm';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { DRIZZLE_DB } from '../database/database.constants';
 import { DrizzleTransactionContext } from '../database/drizzle-transaction.context';
@@ -95,5 +95,15 @@ export class BookmarksRepository {
       'Similarity scores',
     );
     return rows.map((r) => r.bookmark);
+  }
+
+  async findByTag(tag: string): Promise<BookmarkSelect[]> {
+    const normalizedTag = tag.toLowerCase();
+    this.logger.debug({ tag: normalizedTag }, 'Finding bookmarks by tag');
+    const client = this.txContext.getClient(this.db);
+    return client
+      .select()
+      .from(bookmarksTable)
+      .where(and(eq(bookmarksTable.status, 'COMPLETED'), arrayContains(bookmarksTable.tags, [normalizedTag])));
   }
 }
