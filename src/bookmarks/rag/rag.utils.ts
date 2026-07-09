@@ -1,9 +1,9 @@
 import { NO_CONTEXT_REPLY } from './rag.constants';
-import type { SearchResultDto } from '../dto/search-result.dto';
 
+type BookmarkContext = { originalUrl: string; contentSummary: string; tags: string[] };
 
 export class RagUtils {
-  static buildSystemPrompt(results: SearchResultDto[]): string {
+  static buildSystemPrompt(results: BookmarkContext[]): string {
     if (results.length === 0) {
       return [
         'You are a helpful assistant.',

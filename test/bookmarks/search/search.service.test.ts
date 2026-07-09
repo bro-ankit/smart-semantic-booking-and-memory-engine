@@ -13,11 +13,11 @@ describe('SearchService Unit Test', () => {
   const QUERY = 'how does Kafka handle message ordering';
   const EMBEDDING = new Array(768).fill(0.05);
 
-  const BOOKMARK_ROWS = [
-    mockBookmarkSelect({ id: 'id-1', originalUrl: 'https://example.com/kafka-partitioning', contentSummary: 'Deep dive into Kafka partitioning and ordering guarantees.', tags: ['kafka', 'streaming'], embedding: EMBEDDING, status: 'COMPLETED', createdAt: new Date('2026-05-20T00:00:00Z') }),
-    mockBookmarkSelect({ id: 'id-2', originalUrl: 'https://example.com/kafka-consumers', contentSummary: 'Consumer group rebalancing in Apache Kafka.', tags: ['kafka', 'consumers'], embedding: EMBEDDING, status: 'COMPLETED', createdAt: new Date('2026-05-20T01:00:00Z') }),
-    mockBookmarkSelect({ id: 'id-3', originalUrl: 'https://example.com/event-streaming', contentSummary: 'Event streaming patterns for distributed systems.', tags: ['events', 'distributed'], embedding: EMBEDDING, status: 'COMPLETED', createdAt: new Date('2026-05-20T02:00:00Z') }),
-  ];
+  const BOOKMARKS = {
+    'id-1': mockBookmarkSelect({ id: 'id-1', originalUrl: 'https://example.com/kafka-partitioning', contentSummary: 'Kafka partitioning and ordering guarantees.', tags: ['kafka', 'streaming'], status: 'COMPLETED' }),
+    'id-2': mockBookmarkSelect({ id: 'id-2', originalUrl: 'https://example.com/kafka-consumers', contentSummary: 'Consumer group rebalancing in Apache Kafka.', tags: ['kafka', 'consumers'], status: 'COMPLETED' }),
+    'id-3': mockBookmarkSelect({ id: 'id-3', originalUrl: 'https://example.com/event-streaming', contentSummary: 'Event streaming patterns for distributed systems.', tags: ['events', 'distributed'], status: 'COMPLETED' }),
+  };
 
   beforeAll(() => {
     const { unit, unitRef } = TestBed.create(SearchService).compile();
@@ -29,59 +29,64 @@ describe('SearchService Unit Test', () => {
   beforeEach(() => jest.clearAllMocks());
 
   describe('Given search, When called', () => {
-    describe('And matching bookmarks exist', () => {
+    describe('And both vector and lexical results exist', () => {
       beforeEach(() => {
         aiClient.generateEmbedding.mockResolvedValue(EMBEDDING);
-        bookmarksRepository.findSimilar.mockResolvedValue(BOOKMARK_ROWS);
+
+        bookmarksRepository.findSimilarIds.mockResolvedValue(['id-1', 'id-2', 'id-3']);
+        bookmarksRepository.findByLexical.mockResolvedValue(['id-1', 'id-3']);
+        bookmarksRepository.findByIds.mockResolvedValue([BOOKMARKS['id-1']!, BOOKMARKS['id-3']!, BOOKMARKS['id-2']!]);
       });
 
-      test('Then it returns mapped SearchResultDtos without the embedding field', async () => {
+      test('Then it returns BookmarkSelect entities in RRF-fused order', async () => {
         const results = await sut.search(QUERY);
 
-        expect(results).toEqual([
-          {
-            id: 'id-1',
-            originalUrl: 'https://example.com/kafka-partitioning',
-            contentSummary: 'Deep dive into Kafka partitioning and ordering guarantees.',
-            tags: ['kafka', 'streaming'],
-            status: 'COMPLETED',
-            createdAt: new Date('2026-05-20T00:00:00Z'),
-          },
-          {
-            id: 'id-2',
-            originalUrl: 'https://example.com/kafka-consumers',
-            contentSummary: 'Consumer group rebalancing in Apache Kafka.',
-            tags: ['kafka', 'consumers'],
-            status: 'COMPLETED',
-            createdAt: new Date('2026-05-20T01:00:00Z'),
-          },
-          {
-            id: 'id-3',
-            originalUrl: 'https://example.com/event-streaming',
-            contentSummary: 'Event streaming patterns for distributed systems.',
-            tags: ['events', 'distributed'],
-            status: 'COMPLETED',
-            createdAt: new Date('2026-05-20T02:00:00Z'),
-          },
-        ]);
+        expect(results.map((r) => r.id)).toEqual(['id-1', 'id-3', 'id-2']);
       });
 
-      test('Then it embeds the query and passes it to the repository with limit 3', async () => {
+      test('Then it embeds the query and queries both retrievers with CANDIDATE_K', async () => {
         await sut.search(QUERY);
 
         expect(aiClient.generateEmbedding).toHaveBeenCalledWith(QUERY);
-        expect(bookmarksRepository.findSimilar).toHaveBeenCalledWith(EMBEDDING, 3, 0.5);
+        expect(bookmarksRepository.findSimilarIds).toHaveBeenCalledWith(EMBEDDING, 20);
+        expect(bookmarksRepository.findByLexical).toHaveBeenCalledWith(QUERY, 20);
+      });
+
+      test('Then both retrievers run in parallel (called before findByIds)', async () => {
+        await sut.search(QUERY);
+
+        const similarCall = bookmarksRepository.findSimilarIds.mock.invocationCallOrder[0]!;
+        const lexicalCall = bookmarksRepository.findByLexical.mock.invocationCallOrder[0]!;
+        const byIdsCall = bookmarksRepository.findByIds.mock.invocationCallOrder[0]!;
+
+        expect(similarCall).toBeLessThan(byIdsCall);
+        expect(lexicalCall).toBeLessThan(byIdsCall);
       });
     });
 
-    describe('And no bookmarks match', () => {
-      test('Then it returns an empty array', async () => {
+    describe('And only vector results exist (no lexical matches)', () => {
+      test('Then it still returns top 3 by vector rank alone', async () => {
         aiClient.generateEmbedding.mockResolvedValue(EMBEDDING);
-        bookmarksRepository.findSimilar.mockResolvedValue([]);
+        bookmarksRepository.findSimilarIds.mockResolvedValue(['id-1', 'id-2', 'id-3']);
+        bookmarksRepository.findByLexical.mockResolvedValue([]);
+        bookmarksRepository.findByIds.mockResolvedValue([BOOKMARKS['id-1']!, BOOKMARKS['id-2']!, BOOKMARKS['id-3']!]);
+
+        const results = await sut.search(QUERY);
+
+        expect(results.map((r) => r.id)).toEqual(['id-1', 'id-2', 'id-3']);
+      });
+    });
+
+    describe('And neither retriever finds anything', () => {
+      test('Then it returns an empty array without calling findByIds', async () => {
+        aiClient.generateEmbedding.mockResolvedValue(EMBEDDING);
+        bookmarksRepository.findSimilarIds.mockResolvedValue([]);
+        bookmarksRepository.findByLexical.mockResolvedValue([]);
 
         const results = await sut.search(QUERY);
 
         expect(results).toEqual([]);
+        expect(bookmarksRepository.findByIds).not.toHaveBeenCalled();
       });
     });
   });

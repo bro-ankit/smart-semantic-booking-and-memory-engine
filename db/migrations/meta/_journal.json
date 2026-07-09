@@ -36,6 +36,13 @@
       "when": 1782208841962,
       "tag": "0004_shiny_captain_universe",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782980012609,
+      "tag": "0005_add_hybrid_search",
+      "breakpoints": true
     }
   ]
 }

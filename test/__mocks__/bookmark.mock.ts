@@ -7,6 +7,7 @@ export const mockBookmarkSelect = (overrides: Partial<BookmarkSelect> = {}): Boo
   contentSummary: '',
   tags: [],
   embedding: null,
+  tsvContent: null,
   status: 'PENDING',
   errorMessage: null,
   aiContentSummary: '',

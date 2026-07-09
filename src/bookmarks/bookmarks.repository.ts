@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { sql, isNotNull, and, eq, arrayContains } from 'drizzle-orm';
+import { sql, isNotNull, and, eq, arrayContains, inArray } from 'drizzle-orm';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { DRIZZLE_DB } from '../database/database.constants';
 import { DrizzleTransactionContext } from '../database/drizzle-transaction.context';
@@ -36,9 +36,10 @@ export class BookmarksRepository {
   ): Promise<BookmarkSelect> {
     this.logger.debug({ id }, 'Updating bookmark with enrichment data');
     const client = this.txContext.getClient(this.db);
+    const searchableText = `${data.contentSummary} ${data.tags.join(' ')}`;
     const [result] = await client
       .update(bookmarksTable)
-      .set(data)
+      .set({ ...data, tsvContent: sql`to_tsvector('english', ${searchableText})` })
       .where(eq(bookmarksTable.id, id))
       .returning();
     return result!;
@@ -105,5 +106,39 @@ export class BookmarksRepository {
       .select()
       .from(bookmarksTable)
       .where(and(eq(bookmarksTable.status, 'COMPLETED'), arrayContains(bookmarksTable.tags, [normalizedTag])));
+  }
+
+  async findSimilarIds(embedding: number[], limit: number): Promise<string[]> {
+    const client = this.txContext.getClient(this.db);
+    const vector = `[${embedding.join(',')}]`;
+    const distanceExpr = sql<number>`${bookmarksTable.embedding} <=> ${vector}::vector`;
+    const rows = await client
+      .select({ id: bookmarksTable.id })
+      .from(bookmarksTable)
+      .where(and(isNotNull(bookmarksTable.embedding), eq(bookmarksTable.status, 'COMPLETED')))
+      .orderBy(distanceExpr)
+      .limit(limit);
+    return rows.map((r) => r.id);
+  }
+
+  async findByLexical(query: string, limit: number): Promise<string[]> {
+    const client = this.txContext.getClient(this.db);
+    const rows = await client
+      .select({ id: bookmarksTable.id })
+      .from(bookmarksTable)
+      .where(and(
+        isNotNull(bookmarksTable.tsvContent),
+        eq(bookmarksTable.status, 'COMPLETED'),
+        sql`${bookmarksTable.tsvContent} @@ plainto_tsquery('english', ${query})`,
+      ))
+      .orderBy(sql`ts_rank(${bookmarksTable.tsvContent}, plainto_tsquery('english', ${query})) DESC`)
+      .limit(limit);
+    return rows.map((r) => r.id);
+  }
+
+  async findByIds(ids: string[]): Promise<BookmarkSelect[]> {
+    if (ids.length === 0) return [];
+    const client = this.txContext.getClient(this.db);
+    return client.select().from(bookmarksTable).where(inArray(bookmarksTable.id, ids));
   }
 }

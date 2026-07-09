@@ -12,6 +12,7 @@ import { IngestModule } from '../ingest/ingest.module';
 import { SCRAPING_QUEUE } from '../scraper/scraper.constants';
 import { BOOKMARK_COMMAND_HANDLERS } from './commands';
 import { REVIEW_HANDLERS } from './review';
+import { SearchQueryHandler } from './search/search.query-handler';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { REVIEW_HANDLERS } from './review';
   ],
   providers: [
     SearchService,
+    SearchQueryHandler,
     RAGService,
     CorrectionsRepository,
     ...BOOKMARK_COMMAND_HANDLERS,

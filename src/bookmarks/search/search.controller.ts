@@ -1,18 +1,19 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { QueryBus } from '@nestjs/cqrs';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { SearchService } from './search.service';
+import { SearchQuery } from './search.query';
 import { SearchQueryDto } from '../dto/search-query.dto';
 import { SearchResultDto } from '../dto/search-result.dto';
 
 @ApiTags('search')
 @Controller('search')
 export class SearchController {
-  constructor(private readonly searchService: SearchService) {}
+  constructor(private readonly queryBus: QueryBus) {}
 
   @Get()
-  @ApiOperation({ summary: 'Semantic search — finds top 3 bookmarks closest to the query by cosine similarity' })
+  @ApiOperation({ summary: 'Hybrid search — vector + keyword fused with RRF, returns top 3 bookmarks' })
   @ApiOkResponse({ type: [SearchResultDto] })
   search(@Query() dto: SearchQueryDto): Promise<SearchResultDto[]> {
-    return this.searchService.search(dto.q);
+    return this.queryBus.execute(new SearchQuery(dto.q));
   }
 }

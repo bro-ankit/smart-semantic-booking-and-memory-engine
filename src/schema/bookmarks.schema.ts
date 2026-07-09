@@ -1,5 +1,6 @@
 import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core';
 import { getGeminiVector } from './vector.type';
+import { tsvector } from './tsvector.type';
 
 export const INGESTION_STATUSES = [
   'PENDING',
@@ -25,6 +26,7 @@ export const bookmarksTable = pgTable('bookmarks', {
   aiContentSummary: text('ai_content_summary').notNull().default(''),
   aiTags: text('ai_tags').array().notNull().default([]),
   aiActionItems: text('ai_action_items').array().notNull().default([]),
+  tsvContent: tsvector('tsv_content'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
