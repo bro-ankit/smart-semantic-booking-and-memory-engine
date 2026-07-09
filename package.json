@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "db:migrate:generate": "drizzalso le-kit generate",
+    "db:migrate:generate": "drizzle-kit generate",
     "db:migrate:run": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "test": "jest",

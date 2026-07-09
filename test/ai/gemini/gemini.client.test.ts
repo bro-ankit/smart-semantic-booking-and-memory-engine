@@ -5,6 +5,8 @@ import { GeminiClient } from '../../../src/ai/gemini/gemini.client';
 import { GEMINI_CLIENT } from '../../../src/ai/gemini/gemini.constants';
 import type { AiResponseSchema, AgentMessage, AgentTool } from '../../../src/ai/ai.interface';
 import { AssertUtils } from '../../utils/assert.utils';
+import { MetricsReporter } from '../../../src/metrics/metrics.reporter';
+import { AiUsageContextService } from '../../../src/metrics/ai-usage-context.service';
 
 const PROMPT = 'Extract structured data from this text about Kafka partitioning.';
 const SAMPLE_TEXT = 'NestJS dependency injection patterns for scalable services';
@@ -47,16 +49,27 @@ const SAMPLE_EMBEDDING = [0.1, 0.2, 0.3, 0.4];
 describe('GeminiClient Unit Test', () => {
   let sut: GeminiClient;
   let geminiClient: jest.Mocked<GoogleGenerativeAI>;
+  let metricsReporter: jest.Mocked<MetricsReporter>;
+  let usageContext: jest.Mocked<AiUsageContextService>;
 
   const mockGenerateContent = jest.fn();
   const mockEmbedContent = jest.fn();
   const mockSendMessage = jest.fn();
   const mockStartChat = jest.fn(() => ({ sendMessage: mockSendMessage }));
+  const mockGenerateContentStream = jest.fn();
+
+  const asyncIterableOf = <T>(items: T[]): AsyncIterable<T> => ({
+    [Symbol.asyncIterator]: async function* () {
+      for (const item of items) yield item;
+    },
+  });
 
   beforeAll(() => {
     const { unit, unitRef } = TestBed.create(GeminiClient).compile();
     sut = unit;
     geminiClient = unitRef.get<GoogleGenerativeAI>(GEMINI_CLIENT);
+    metricsReporter = unitRef.get(MetricsReporter);
+    usageContext = unitRef.get(AiUsageContextService);
   });
 
   beforeEach(() => {
@@ -65,7 +78,9 @@ describe('GeminiClient Unit Test', () => {
       generateContent: mockGenerateContent,
       embedContent: mockEmbedContent,
       startChat: mockStartChat,
+      generateContentStream: mockGenerateContentStream,
     } as never);
+    usageContext.getOperation.mockReturnValue(undefined);
   });
 
   describe('Given generateStructured, When called', () => {
@@ -260,6 +275,102 @@ describe('GeminiClient Unit Test', () => {
           'Gemini API call failed',
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
+      });
+    });
+  });
+
+  describe('Given generateTextStream, When called', () => {
+    describe('And Gemini streams chunks', () => {
+      test('Then it yields each chunk of text as it arrives', async () => {
+        mockGenerateContentStream.mockResolvedValueOnce({
+          stream: asyncIterableOf([{ text: () => 'Kafka ' }, { text: () => 'preserves order.' }]),
+          response: Promise.resolve({ usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 } }),
+        });
+
+        const chunks: string[] = [];
+        for await (const chunk of sut.generateTextStream(SYSTEM_PROMPT, USER_MESSAGE)) {
+          chunks.push(chunk);
+        }
+
+        expect(chunks).toEqual(['Kafka ', 'preserves order.']);
+        expect(geminiClient.getGenerativeModel).toHaveBeenCalledWith({
+          model: 'gemini-2.5-flash',
+          systemInstruction: SYSTEM_PROMPT,
+        });
+        expect(mockGenerateContentStream).toHaveBeenCalledWith(USER_MESSAGE);
+      });
+
+      test('Then it records the metric under whatever operation is tagged in AiUsageContextService at the time each chunk resolves', async () => {
+        usageContext.getOperation.mockReturnValue('RAG_ASK');
+        mockGenerateContentStream.mockResolvedValueOnce({
+          stream: asyncIterableOf([{ text: () => LLM_ANSWER }]),
+          response: Promise.resolve({ usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 } }),
+        });
+
+        for await (const _chunk of sut.generateTextStream(SYSTEM_PROMPT, USER_MESSAGE)) {
+          // drain the stream so the post-stream usage recording runs
+        }
+
+        expect(metricsReporter.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            operation: 'RAG_ASK',
+            model: 'gemini-2.5-flash',
+            usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+            durationMs: expect.any(Number),
+          }),
+        );
+      });
+    });
+
+    describe('And the Gemini API throws', () => {
+      test('Then it throws 500 with "Gemini API call failed"', async () => {
+        mockGenerateContentStream.mockRejectedValueOnce(new Error('upstream error'));
+
+        const consume = async () => {
+          for await (const _chunk of sut.generateTextStream(SYSTEM_PROMPT, USER_MESSAGE)) {
+            // no-op
+          }
+        };
+
+        await AssertUtils.assertError(consume, 'Gemini API call failed', HttpStatus.INTERNAL_SERVER_ERROR);
+        expect(metricsReporter.record).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Given usage tracking, When a generation method is called', () => {
+    describe('And AiUsageContextService has an operation tagged (i.e. called from within a @TrackAiUsage-wrapped method)', () => {
+      test('Then it records the metric under that operation with the extracted token usage', async () => {
+        usageContext.getOperation.mockReturnValue('RAG_ASK');
+        mockGenerateContent.mockResolvedValueOnce({
+          response: {
+            text: () => LLM_ANSWER,
+            usageMetadata: { promptTokenCount: 50, candidatesTokenCount: 20, totalTokenCount: 70 },
+          },
+        });
+
+        await sut.generateText(SYSTEM_PROMPT, USER_MESSAGE);
+
+        expect(metricsReporter.record).toHaveBeenCalledWith(
+          expect.objectContaining({
+            operation: 'RAG_ASK',
+            model: 'gemini-2.5-flash',
+            usage: { promptTokens: 50, completionTokens: 20, totalTokens: 70 },
+            durationMs: expect.any(Number),
+          }),
+        );
+      });
+    });
+
+    describe('And AiUsageContextService has no operation tagged (called outside any @TrackAiUsage method)', () => {
+      test('Then it does not record a metric', async () => {
+        mockGenerateContent.mockResolvedValueOnce({
+          response: { text: () => LLM_ANSWER, usageMetadata: undefined },
+        });
+
+        await sut.generateText(SYSTEM_PROMPT, USER_MESSAGE);
+
+        expect(metricsReporter.record).not.toHaveBeenCalled();
       });
     });
   });

@@ -10,6 +10,7 @@ import { AGENT_TOOLS } from '../tools/agent-tools.definitions';
 import { AI_CLIENT } from '../../ai/ai.constants';
 import type { IAiClient, AgentMessage } from '../../ai/ai.interface';
 import type { ToolCallTrace } from '../agent.types';
+import { TrackAiUsage } from '../../metrics/track-ai-usage.decorator';
 
 const DTO_OPTIONS = { excludeExtraneousValues: true } as const;
 
@@ -26,6 +27,7 @@ export class RunAgentCommandHandler implements ICommandHandler<RunAgentCommand, 
     private readonly toolExecutor: AgentToolExecutorService,
   ) { }
 
+  @TrackAiUsage('AGENT_TURN')
   async execute(command: RunAgentCommand): Promise<RunAgentResponseDto> {
     const { question } = command;
     this.logger.info({ question }, 'Starting agent run');

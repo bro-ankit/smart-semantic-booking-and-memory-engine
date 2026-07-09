@@ -1,19 +1,32 @@
 import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { GoogleGenerativeAI, SchemaType, type Schema, type Content, type Part, FunctionDeclarationSchema, EmbedContentRequest } from '@google/generative-ai';
-import { GEMINI_CLIENT, GEMINI_ERRORS } from './gemini.constants';
-import type { IAiClient, AiResponseSchema, AiSchemaProperty, AgentMessage, AgentTool, AgentTurnResult } from '../ai.interface';
+import { GEMINI_CLIENT, GEMINI_ERRORS, GEMINI_COST_DEFAULTS } from './gemini.constants';
+import { ENV_VARIABLES } from '../../constants/env.constants';
+import type { IAiClient, AiResponseSchema, AiSchemaProperty, AgentMessage, AgentTool, AgentTurnResult, TokenUsage } from '../ai.interface';
 import { Resilient } from '../../resilience';
+import { MetricsReporter } from '../../metrics/metrics.reporter';
+import { AiUsageContextService } from '../../metrics/ai-usage-context.service';
 
 const GENERATION_MODEL = 'gemini-2.5-flash';
 const EMBEDDING_MODEL = 'gemini-embedding-001';
 
 @Injectable()
 export class GeminiClient implements IAiClient {
+  private readonly costInputPerMillion: number;
+  private readonly costOutputPerMillion: number;
+
   constructor(
     @InjectPinoLogger(GeminiClient.name) private readonly logger: PinoLogger,
     @Inject(GEMINI_CLIENT) private readonly client: GoogleGenerativeAI,
-  ) { }
+    config: ConfigService,
+    private readonly metricsReporter: MetricsReporter,
+    private readonly usageContext: AiUsageContextService,
+  ) {
+    this.costInputPerMillion = config.get<number>(ENV_VARIABLES.GEMINI.COST_INPUT_PER_MILLION, GEMINI_COST_DEFAULTS.INPUT);
+    this.costOutputPerMillion = config.get<number>(ENV_VARIABLES.GEMINI.COST_OUTPUT_PER_MILLION, GEMINI_COST_DEFAULTS.OUTPUT);
+  }
 
   async generateStructured(prompt: string, schema: AiResponseSchema): Promise<unknown> {
     this.logger.info({ model: GENERATION_MODEL }, 'Sending structured generation request');
@@ -26,8 +39,21 @@ export class GeminiClient implements IAiClient {
       },
     });
 
-    const rawJson = await this.executeGeneration(model, prompt);
-    return this.parseJson(rawJson);
+    const start = Date.now();
+    let rawText: string;
+    let usage: TokenUsage;
+    try {
+      const result = await model.generateContent(prompt);
+      rawText = result.response.text();
+      usage = this.extractUsage(result.response.usageMetadata);
+      this.logger.debug({ usage }, 'Structured generation token usage');
+    } catch (err) {
+      this.logger.error({ err }, GEMINI_ERRORS.API_CALL_FAILED);
+      throw new InternalServerErrorException(GEMINI_ERRORS.API_CALL_FAILED, { cause: err });
+    }
+
+    this.recordUsage(usage, Date.now() - start);
+    return this.parseJson(rawText);
   }
 
   async generateText(systemPrompt: string, userMessage: string): Promise<string> {
@@ -38,7 +64,19 @@ export class GeminiClient implements IAiClient {
       systemInstruction: systemPrompt,
     });
 
-    return this.executeGeneration(model, userMessage);
+    const start = Date.now();
+    try {
+      const result = await model.generateContent(userMessage);
+      const usage = this.extractUsage(result.response.usageMetadata);
+
+      this.logger.debug({ usage }, 'Free-text generation token usage');
+      this.recordUsage(usage, Date.now() - start);
+
+      return result.response.text();
+    } catch (err) {
+      this.logger.error({ err }, GEMINI_ERRORS.API_CALL_FAILED);
+      throw new InternalServerErrorException(GEMINI_ERRORS.API_CALL_FAILED, { cause: err });
+    }
   }
 
   async generateWithTools(history: AgentMessage[], tools: AgentTool[]): Promise<AgentTurnResult> {
@@ -52,10 +90,14 @@ export class GeminiClient implements IAiClient {
     const conversationHistory = this.toGeminiHistory(history.slice(0, -1));
     const lastParts = this.toLastParts(history[history.length - 1]);
 
+    const start = Date.now();
     try {
       const chat = model.startChat({ history: conversationHistory });
       const result = await chat.sendMessage(lastParts);
+      const usage = this.extractUsage(result.response.usageMetadata);
       const functionCalls = result.response.functionCalls();
+
+      this.recordUsage(usage, Date.now() - start);
 
       if (functionCalls && functionCalls.length > 0) {
         const call = functionCalls[0]!;
@@ -63,6 +105,35 @@ export class GeminiClient implements IAiClient {
       }
 
       return { type: 'final_answer', text: result.response.text() };
+    } catch (err) {
+      this.logger.error({ err }, GEMINI_ERRORS.API_CALL_FAILED);
+      throw new InternalServerErrorException(GEMINI_ERRORS.API_CALL_FAILED, { cause: err });
+    }
+  }
+
+  // Reads AiUsageContextService ambiently, same as every other method here.
+  // That only works because the caller (RAGService.streamExecute) re-enters the
+  // ALS context around each iterator.next() call — see AiUsageContextService.run
+  // usage there and ADR-019 for why a plain @TrackAiUsage on the caller can't
+  // reach this method on its own.
+  async *generateTextStream(systemPrompt: string, userMessage: string): AsyncIterable<string> {
+    this.logger.info({ model: GENERATION_MODEL }, 'Sending streaming text request');
+
+    const model = this.client.getGenerativeModel({
+      model: GENERATION_MODEL,
+      systemInstruction: systemPrompt,
+    });
+
+    const start = Date.now();
+    try {
+      const { stream, response } = await model.generateContentStream(userMessage);
+      for await (const chunk of stream) {
+        const text = chunk.text();
+        if (text) yield text;
+      }
+
+      const finalResponse = await response;
+      this.recordUsage(this.extractUsage(finalResponse.usageMetadata), Date.now() - start);
     } catch (err) {
       this.logger.error({ err }, GEMINI_ERRORS.API_CALL_FAILED);
       throw new InternalServerErrorException(GEMINI_ERRORS.API_CALL_FAILED, { cause: err });
@@ -80,6 +151,15 @@ export class GeminiClient implements IAiClient {
       this.logger.error({ err }, GEMINI_ERRORS.API_CALL_FAILED);
       throw new InternalServerErrorException(GEMINI_ERRORS.API_CALL_FAILED, { cause: err });
     }
+  }
+
+  private extractUsage(meta: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } | undefined): TokenUsage {
+    if (!meta) return this.zeroUsage();
+    return {
+      promptTokens: meta.promptTokenCount ?? 0,
+      completionTokens: meta.candidatesTokenCount ?? 0,
+      totalTokens: meta.totalTokenCount ?? 0,
+    };
   }
 
   private toGeminiSchema(prop: AiSchemaProperty | AiResponseSchema): Schema {
@@ -133,16 +213,6 @@ export class GeminiClient implements IAiClient {
     throw new InternalServerErrorException(`generateWithTools called with unexpected last message role: ${message.role}`);
   }
 
-  private async executeGeneration(model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>, prompt: string): Promise<string> {
-    try {
-      const result = await model.generateContent(prompt);
-      return result.response.text();
-    } catch (err) {
-      this.logger.error({ err }, GEMINI_ERRORS.API_CALL_FAILED);
-      throw new InternalServerErrorException(GEMINI_ERRORS.API_CALL_FAILED, { cause: err });
-    }
-  }
-
   private parseJson(rawJson: string): unknown {
     try {
       return JSON.parse(rawJson) as unknown;
@@ -151,4 +221,31 @@ export class GeminiClient implements IAiClient {
       throw new InternalServerErrorException(GEMINI_ERRORS.NON_JSON_RESPONSE);
     }
   }
+
+  private zeroUsage(): TokenUsage {
+    return { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  }
+
+  private computeCostUsd(usage: TokenUsage): number {
+    return (
+      (usage.promptTokens * this.costInputPerMillion +
+        usage.completionTokens * this.costOutputPerMillion) /
+      1_000_000
+    );
+  }
+
+  private recordUsage(usage: TokenUsage, durationMs: number): void {
+    const operation = this.usageContext.getOperation();
+    if (!operation) return;
+
+    this.metricsReporter.record({
+      operation,
+      model: GENERATION_MODEL,
+      usage,
+      estimatedCostUsd: this.computeCostUsd(usage),
+      durationMs,
+    });
+  }
+
+
 }

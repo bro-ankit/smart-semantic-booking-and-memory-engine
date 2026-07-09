@@ -27,9 +27,16 @@ export type AgentTurnResult =
   | { type: 'tool_call'; toolName: string; args: Record<string, unknown> }
   | { type: 'final_answer'; text: string };
 
+export type TokenUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+};
+
 export interface IAiClient {
   generateStructured(prompt: string, schema: AiResponseSchema): Promise<unknown>;
   generateEmbedding(text: string): Promise<number[]>;
   generateText(systemPrompt: string, userMessage: string): Promise<string>;
   generateWithTools(history: AgentMessage[], tools: AgentTool[]): Promise<AgentTurnResult>;
+  generateTextStream(systemPrompt: string, userMessage: string): AsyncIterable<string>;
 }

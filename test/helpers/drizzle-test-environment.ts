@@ -1,4 +1,4 @@
-import { type Provider } from '@nestjs/common';
+import { type Provider, type ModuleMetadata } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { LoggerModule } from 'nestjs-pino';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
@@ -21,7 +21,7 @@ export class DrizzleTestEnvironment {
   db!: DrizzleDb;
   module!: TestingModule;
 
-  async start(providers: Provider[]): Promise<void> {
+  async start(providers: Provider[], imports: NonNullable<ModuleMetadata['imports']> = []): Promise<void> {
     this.container = await new PostgreSqlContainer(PGVECTOR_IMAGE)
       .withReuse()
       .start();
@@ -38,7 +38,7 @@ export class DrizzleTestEnvironment {
     await migrate(this.db, { migrationsFolder: MIGRATIONS_FOLDER });
 
     this.module = await Test.createTestingModule({
-      imports: [LoggerModule.forRoot({ pinoHttp: { level: 'silent' } })],
+      imports: [LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }), ...imports],
       providers: [
         { provide: DRIZZLE_DB, useValue: this.db },
         DrizzleTransactionContext,

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { AI_CLIENT } from '../../ai/ai.constants';
 import type { IAiClient, AiResponseSchema } from '../../ai/ai.interface';
 import type { EvalJudgeInput, EvalJudgeResult } from '../evals.types';
+import { TrackAiUsage } from '../../metrics/track-ai-usage.decorator';
 
 const JUDGE_AI_SCHEMA: AiResponseSchema = {
   type: 'object',
@@ -28,6 +29,7 @@ export class EvalJudgeService {
     @Inject(AI_CLIENT) private readonly aiClient: IAiClient,
   ) {}
 
+  @TrackAiUsage('EVAL_JUDGE')
   async score(input: EvalJudgeInput): Promise<EvalJudgeResult> {
     const prompt = this.buildJudgePrompt(input);
     this.logger.debug({ question: input.question }, 'Scoring eval case with LLM judge');

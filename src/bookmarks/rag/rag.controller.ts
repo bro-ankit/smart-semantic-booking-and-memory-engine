@@ -1,5 +1,6 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, MessageEvent, Post, Sse } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Observable, from, map } from 'rxjs';
 import { RAGService } from './rag.service';
 import { AskQuestionDto } from '../dto/ask-question.dto';
 import { AskResponseDto } from '../dto/ask-response.dto';
@@ -14,5 +15,14 @@ export class RAGController {
   @ApiOkResponse({ type: AskResponseDto })
   ask(@Body() dto: AskQuestionDto): Promise<AskResponseDto> {
     return this.ragService.ask(dto.question);
+  }
+
+  @Post('stream')
+  @Sse()
+  @ApiOperation({ summary: 'Ask a question — answer streamed token-by-token via SSE' })
+  stream(@Body() dto: AskQuestionDto): Observable<MessageEvent> {
+    return from(this.ragService.streamAnswer(dto.question)).pipe(
+      map((token) => ({ data: token }) satisfies MessageEvent),
+    );
   }
 }

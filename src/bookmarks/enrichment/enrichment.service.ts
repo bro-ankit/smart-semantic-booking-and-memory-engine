@@ -5,6 +5,7 @@ import type { IAiClient, AiResponseSchema } from '../../ai/ai.interface';
 import { BookmarkEnrichmentSchema, type BookmarkEnrichment } from './enrichment.zod';
 import { ENRICHMENT_ERRORS } from './enrichment.constants';
 import { Resilient } from '../../resilience';
+import { TrackAiUsage } from '../../metrics/track-ai-usage.decorator';
 
 const ENRICHMENT_RESPONSE_SCHEMA: AiResponseSchema = {
   type: 'object',
@@ -38,6 +39,7 @@ export class EnrichmentService {
   ) { }
 
   @Resilient()
+  @TrackAiUsage('ENRICHMENT')
   async enrich(text: string): Promise<BookmarkEnrichment> {
     this.logger.debug({ textLength: text.length }, 'Starting enrichment');
 

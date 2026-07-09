@@ -8,6 +8,7 @@ import { BookmarksModule } from './bookmarks/bookmarks.module';
 import { EvalsModule } from './evals/evals.module';
 import { AgentModule } from './agent/agent.module';
 import { ResilienceModule } from './resilience';
+import { MetricsModule } from './metrics/metrics.module';
 import { ENV_VARIABLES } from './constants/env.constants';
 
 @Module({
@@ -33,6 +34,7 @@ import { ENV_VARIABLES } from './constants/env.constants';
       }),
     }),
     ResilienceModule,
+    MetricsModule,
     DatabaseModule,
     AiModule,
     BookmarksModule,
