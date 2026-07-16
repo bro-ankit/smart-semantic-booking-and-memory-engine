@@ -1,0 +1,155 @@
+{
+  "totalCases": 17,
+  "avgRelevance": 0.79,
+  "avgFaithfulness": 1,
+  "weakCases": [
+    {
+      "question": "What is the difference between Gemini native function calling and prompt-engineering tool routing?",
+      "relevanceScore": 0,
+      "faithfulnessScore": 1
+    },
+    {
+      "question": "Why does a RAG agent need a control loop with a max iteration limit?",
+      "relevanceScore": 0,
+      "faithfulnessScore": 1
+    }
+  ],
+  "runs": [
+    {
+      "id": "25afcd37-827b-40a9-900d-b6a4881c84ea",
+      "goldenQuestion": "How does Kafka achieve horizontal consumer scaling?",
+      "relevanceScore": 1,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer directly addresses how Kafka achieves horizontal consumer scaling by discussing consumer groups, partition assignment, rebalancing, and parallelism. All expected topics are covered. Every factual claim in the answer is explicitly supported by the provided context, demonstrating high faithfulness.",
+      "createdAt": "2026-07-09T08:57:01.121Z"
+    },
+    {
+      "id": "a15d2827-e2bf-4919-86de-6598be3e7438",
+      "goldenQuestion": "How does NestJS CQRS CommandBus decouple the HTTP controller from business logic?",
+      "relevanceScore": 1,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer directly explains how NestJS CQRS CommandBus decouples the HTTP controller from business logic by detailing the controller's role in dispatching typed commands and its ignorance of handler implementation. It explicitly states that this design enforces single responsibility and makes handlers independently testable, thereby covering all the expected topics (dispatcher, command handler via 'handler implementation', separation of concerns via 'decouples' and 'knows nothing', single responsibility, and testability). Every factual claim in the answer is directly present in the first provided context block, demonstrating perfect faithfulness.",
+      "createdAt": "2026-07-09T09:00:33.145Z"
+    },
+    {
+      "id": "02e4a243-7b09-487b-b1d8-fa372e3fc554",
+      "goldenQuestion": "How does pgvector's HNSW index work and why is it faster than brute-force search?",
+      "relevanceScore": 0.85,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer accurately describes how the HNSW index works and why it's faster than brute-force search, covering key concepts like multi-layer proximity graph, greedy navigation, and approximate nearest neighbor lookup. However, it does not address the 'index build time' topic from the expected topics, which is a minor omission.",
+      "createdAt": "2026-07-09T08:58:11.294Z"
+    },
+    {
+      "id": "fdf19693-cfdb-45cf-8fe9-37c2112ff27e",
+      "goldenQuestion": "What are the three states of a circuit breaker and how does it transition between them?",
+      "relevanceScore": 1,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer fully addresses the question by clearly listing the three states of a circuit breaker and explaining the transitions between them. It covers all expected topics: closed, open, half-open, error rate threshold (implicitly via 'failure threshold'), and probe request. All factual claims made in the answer are directly and explicitly supported by the first block of the provided retrieved context.",
+      "createdAt": "2026-07-09T08:59:57.925Z"
+    },
+    {
+      "id": "aef5d257-4035-4865-9fea-4e7632d9a275",
+      "goldenQuestion": "What does AsyncLocalStorage solve when propagating database transactions across async boundaries?",
+      "relevanceScore": 1,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer directly and comprehensively addresses the question, covering all expected topics such as implicit propagation, async context, transaction scope, no prop drilling, and request-scoped behavior by explaining how AsyncLocalStorage stores and retrieves transaction context across async boundaries. All factual claims in the answer are directly supported by the first provided context, demonstrating perfect faithfulness.",
+      "createdAt": "2026-07-13T05:53:02.800Z"
+    },
+    {
+      "id": "f4dc1401-92cd-4dbf-809b-f5e13c9494b9",
+      "goldenQuestion": "What happens to a Kafka consumer group when a new consumer joins?",
+      "relevanceScore": 0.9,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer accurately describes the core process when a new consumer joins: the group coordinator triggers a rebalance, partitions are reassigned, and consumption pauses. All factual claims are directly grounded in the provided context. It covers 'rebalancing', 'partition reassignment', and 'group coordinator' well. However, it omits 'offset management', which was an expected topic, although the context itself does not detail what happens to offset management *specifically* when a new consumer joins, only that it is crucial for tracking messages.",
+      "createdAt": "2026-07-09T08:57:23.872Z"
+    },
+    {
+      "id": "792f2d8e-87fd-41a1-bd0a-6728f409cbdb",
+      "goldenQuestion": "What is the difference between Gemini native function calling and prompt-engineering tool routing?",
+      "relevanceScore": 0,
+      "faithfulnessScore": 1,
+      "reasoning": "The retrieved context contains absolutely no information about Gemini native function calling or prompt-engineering tool routing. The model correctly identified this lack of information and refused to answer. Consequently, the relevance is 0.0 as it does not address the expected topics, but the faithfulness is 1.0 because it did not hallucinate or make any ungrounded factual claims.",
+      "createdAt": "2026-07-15T10:18:40.240Z"
+    },
+    {
+      "id": "01ad0427-ed25-40a0-9be1-d12452dfe57b",
+      "goldenQuestion": "What is the difference between cosine similarity and L2 distance for embedding search?",
+      "relevanceScore": 0.8,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer directly addresses the core difference between cosine distance and L2 distance, correctly identifying cosine distance as magnitude-invariant and suitable for text embeddings, while L2 distance is sensitive to magnitude. This is accurate and fully grounded in the provided context. However, it misses elaborating on related concepts like vector direction, normalization, or the dot product, which are relevant to a complete explanation of the differences as suggested by the expected topics.",
+      "createdAt": "2026-07-09T08:58:32.691Z"
+    },
+    {
+      "id": "59f8103c-adc5-40bd-8d8a-f237a0437d01",
+      "goldenQuestion": "What is the difference between relevance and faithfulness in RAG evaluation?",
+      "relevanceScore": 1,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer directly and accurately defines both relevance and faithfulness, clearly stating their difference and orthogonality, which directly addresses the question. All claims made in the answer are explicitly supported by the provided context, demonstrating perfect faithfulness.",
+      "createdAt": "2026-07-09T08:59:12.868Z"
+    },
+    {
+      "id": "6a95e7c5-318c-412c-abde-50aa299ed49c",
+      "goldenQuestion": "What is the role of text embeddings in a semantic search system?",
+      "relevanceScore": 0.9,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer accurately describes the role of text embeddings in semantic search by explaining they encode semantic meaning in high-dimensional space, how an encoder model maps text to this space, and how nearest neighbor search enables semantic retrieval. All factual claims are directly supported by the provided context. The answer covers most expected topics (high-dimensional vector, semantic meaning, encoder model, nearest neighbour), but it does not explicitly mention 'cosine distance'.",
+      "createdAt": "2026-07-13T05:51:45.812Z"
+    },
+    {
+      "id": "73c8b26d-7de5-4883-b375-ea4c62b4aef8",
+      "goldenQuestion": "What is the tradeoff between more Kafka partitions and fewer partitions?",
+      "relevanceScore": 0.85,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer directly addresses the tradeoff by explaining the benefits of more partitions (greater horizontal consumer scaling, higher parallelism) and the associated costs (rebalancing overhead, consumption pauses, primary latency cost). It covers parallelism, rebalancing overhead, and latency explicitly, and throughput implicitly. However, it completely misses 'leader election' as an expected topic and doesn't explicitly discuss the implications of 'fewer partitions' as part of the tradeoff, focusing primarily on the 'more partitions' side.",
+      "createdAt": "2026-07-09T08:57:49.503Z"
+    },
+    {
+      "id": "5226cec4-0837-4581-a58c-0838993ee2d1",
+      "goldenQuestion": "What problem does a circuit breaker solve that retries alone cannot?",
+      "relevanceScore": 0.75,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer correctly identifies cascading failures as the problem circuit breakers solve that retries alone cannot, and accurately states that circuit breakers shed load to break the feedback loop. All factual claims are directly supported by the context. However, the answer is brief and does not mention other relevant concepts from the expected topics list, such as 'fast fail', 'recovery window', or the 'half-open state', all of which are present in the provided context.",
+      "createdAt": "2026-07-09T08:59:33.388Z"
+    },
+    {
+      "id": "86d2b54b-523f-48cc-b928-b420e3127f0c",
+      "goldenQuestion": "Why do RAG systems inject retrieved context into the system prompt rather than the user message?",
+      "relevanceScore": 0.8,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer directly addresses why RAG systems inject context into the system prompt, covering hallucination prevention, grounding, system instructions, and faithfulness. However, it fails to mention or discuss the 'context window' aspect, which is an important consideration in this context. All claims made in the answer are directly supported by the provided retrieved context, indicating high faithfulness.",
+      "createdAt": "2026-07-09T08:58:53.180Z"
+    },
+    {
+      "id": "566b924f-3bc1-48a3-b3db-998b25a8eb3e",
+      "goldenQuestion": "Why does a RAG agent need a control loop with a max iteration limit?",
+      "relevanceScore": 0,
+      "faithfulnessScore": 1,
+      "reasoning": "The retrieved context did not contain any information about RAG agent control loops, max iteration limits, tool chaining, or any of the expected topics. The RAG system correctly identified this lack of relevant context and stated it could not answer the question. This makes the answer 100% faithful to the provided context (or lack thereof), as it makes no factual claims not grounded in the context. However, since it did not provide an answer to the question, its relevance to the question is 0.0.",
+      "createdAt": "2026-07-13T05:52:42.073Z"
+    },
+    {
+      "id": "3a658df2-7204-4ec6-8791-e70aa7430aaf",
+      "goldenQuestion": "Why is a BullMQ job queue better than processing URL scraping synchronously in the HTTP handler?",
+      "relevanceScore": 1,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer directly addresses the question by explaining why BullMQ is better than synchronous processing. It covers all the expected topics:\n- **non-blocking response:** Addressed by 'Prevents Event Loop Blocking', 'Immediate HTTP Response', and 'Asynchronous Processing'.\n- **durability:** Addressed by 'Job Durability'.\n- **retry on failure:** Addressed by 'built-in retry with exponential backoff' under 'Reliability Features'.\n- **backpressure:** Addressed by 'concurrency limits for backpressure control' under 'Reliability Features'.\n- **worker isolation:** Addressed by 'worker process isolation' under 'Reliability Features'.\n\nEvery factual claim in the answer is directly supported by the first provided context snippet. There are no hallucinations.",
+      "createdAt": "2026-07-13T05:51:23.073Z"
+    },
+    {
+      "id": "b560cb2a-1756-4392-8b81-fb2a67a8618c",
+      "goldenQuestion": "Why store both the AI-generated summary and the human-edited version separately?",
+      "relevanceScore": 0.8,
+      "faithfulnessScore": 1,
+      "reasoning": "The system's answer directly addresses the question using the provided context. It covers key expected topics like 'fine-tuning dataset' and 'training signal', and touches upon 'correction delta' (recording where the model was wrong and what the correct output was). It does not explicitly mention 'human-in-the-loop' or 'audit trail', but is highly relevant. It is perfectly faithful to the context, with no hallucinations or external knowledge introduced.",
+      "createdAt": "2026-07-15T10:18:07.056Z"
+    },
+    {
+      "id": "5fb332d8-cd08-44a5-b108-2d62c4579a01",
+      "goldenQuestion": "Why use exponential backoff with jitter instead of fixed-interval retries?",
+      "relevanceScore": 0.8,
+      "faithfulnessScore": 1,
+      "reasoning": "The answer directly addresses why jitter is used with exponential backoff, explaining its role in solving the 'thundering herd problem' by preventing synchronized retries and reducing collisions. All factual claims are accurately grounded in the provided context. However, it does not elaborate on the 'exponential backoff formula' or explicitly contrast it with 'fixed-interval retries,' focusing predominantly on the 'jitter' component of the question.",
+      "createdAt": "2026-07-10T08:33:45.642Z"
+    }
+  ]
+}

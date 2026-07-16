@@ -1,1 +1,87 @@
-[]
+[
+  {
+    "question": "What is the difference between Gemini native function calling and prompt-engineering tool routing?",
+    "expectedTopics": ["model decides which tool", "structured functionCall response", "reliability", "no regex parsing", "tool definitions"],
+    "expectedSourceTag": "agent"
+  },
+  {
+    "question": "Why does a RAG agent need a control loop with a max iteration limit?",
+    "expectedTopics": ["infinite loop prevention", "tool chaining", "partial result", "truncated flag", "resource bound"],
+    "expectedSourceTag": "agent"
+  },
+  {
+    "question": "Why is a BullMQ job queue better than processing URL scraping synchronously in the HTTP handler?",
+    "expectedTopics": ["non-blocking response", "durability", "retry on failure", "backpressure", "worker isolation"],
+    "expectedSourceTag": "bullmq"
+  },
+  {
+    "question": "What does AsyncLocalStorage solve when propagating database transactions across async boundaries?",
+    "expectedTopics": ["implicit propagation", "async context", "transaction scope", "no prop drilling", "request-scoped"],
+    "expectedSourceTag": "nestjs"
+  },
+  {
+    "question": "Why store both the AI-generated summary and the human-edited version separately?",
+    "expectedTopics": ["training signal", "fine-tuning dataset", "correction delta", "audit trail", "human-in-the-loop"],
+    "expectedSourceTag": "human-review"
+  },
+  {
+    "question": "What is the role of text embeddings in a semantic search system?",
+    "expectedTopics": ["high-dimensional vector", "semantic meaning", "cosine distance", "encoder model", "nearest neighbour"],
+    "expectedSourceTag": "embeddings"
+  },
+  {
+    "question": "How does Kafka achieve horizontal consumer scaling?",
+    "expectedTopics": ["partition assignment", "consumer groups", "rebalancing", "parallelism"],
+    "expectedSourceTag": "kafka"
+  },
+  {
+    "question": "What happens to a Kafka consumer group when a new consumer joins?",
+    "expectedTopics": ["rebalancing", "partition reassignment", "offset management", "group coordinator"],
+    "expectedSourceTag": "kafka"
+  },
+  {
+    "question": "What is the tradeoff between more Kafka partitions and fewer partitions?",
+    "expectedTopics": ["throughput", "latency", "rebalancing overhead", "leader election", "parallelism"],
+    "expectedSourceTag": "kafka"
+  },
+  {
+    "question": "How does pgvector's HNSW index work and why is it faster than brute-force search?",
+    "expectedTopics": ["hierarchical navigable small world", "approximate nearest neighbour", "graph traversal", "index build time"],
+    "expectedSourceTag": "pgvector"
+  },
+  {
+    "question": "What is the difference between cosine similarity and L2 distance for embedding search?",
+    "expectedTopics": ["magnitude invariance", "direction", "normalisation", "dot product", "text embeddings"],
+    "expectedSourceTag": "pgvector"
+  },
+  {
+    "question": "Why do RAG systems inject retrieved context into the system prompt rather than the user message?",
+    "expectedTopics": ["grounding", "hallucination prevention", "context window", "system instruction", "faithfulness"],
+    "expectedSourceTag": "rag"
+  },
+  {
+    "question": "What is the difference between relevance and faithfulness in RAG evaluation?",
+    "expectedTopics": ["relevance measures question coverage", "faithfulness measures hallucination", "orthogonal metrics", "LLM judge"],
+    "expectedSourceTag": "rag"
+  },
+  {
+    "question": "What problem does a circuit breaker solve that retries alone cannot?",
+    "expectedTopics": ["cascading failures", "load shedding", "fast fail", "recovery window", "half-open state"],
+    "expectedSourceTag": "resilience"
+  },
+  {
+    "question": "What are the three states of a circuit breaker and how does it transition between them?",
+    "expectedTopics": ["closed", "open", "half-open", "error rate threshold", "probe request"],
+    "expectedSourceTag": "resilience"
+  },
+  {
+    "question": "Why use exponential backoff with jitter instead of fixed-interval retries?",
+    "expectedTopics": ["thundering herd", "jitter", "collision avoidance", "backoff formula", "retry storm"],
+    "expectedSourceTag": "resilience"
+  },
+  {
+    "question": "How does NestJS CQRS CommandBus decouple the HTTP controller from business logic?",
+    "expectedTopics": ["command handler", "dispatcher", "separation of concerns", "single responsibility", "testability"],
+    "expectedSourceTag": "nestjs"
+  }
+]

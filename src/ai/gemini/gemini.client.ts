@@ -2,20 +2,19 @@ import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common
 import { ConfigService } from '@nestjs/config';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { GoogleGenerativeAI, SchemaType, type Schema, type Content, type Part, FunctionDeclarationSchema, EmbedContentRequest } from '@google/generative-ai';
-import { GEMINI_CLIENT, GEMINI_ERRORS, GEMINI_COST_DEFAULTS } from './gemini.constants';
+import { GEMINI_CLIENT, GEMINI_ERRORS, GEMINI_COST_DEFAULTS, GEMINI_MODEL_DEFAULTS } from './gemini.constants';
 import { ENV_VARIABLES } from '../../constants/env.constants';
 import type { IAiClient, AiResponseSchema, AiSchemaProperty, AgentMessage, AgentTool, AgentTurnResult, TokenUsage } from '../ai.interface';
 import { Resilient } from '../../resilience';
 import { MetricsReporter } from '../../metrics/metrics.reporter';
 import { AiUsageContextService } from '../../metrics/ai-usage-context.service';
 
-const GENERATION_MODEL = 'gemini-2.5-flash';
-const EMBEDDING_MODEL = 'gemini-embedding-001';
-
 @Injectable()
 export class GeminiClient implements IAiClient {
   private readonly costInputPerMillion: number;
   private readonly costOutputPerMillion: number;
+  private readonly generationModel: string;
+  private readonly embeddingModel: string;
 
   constructor(
     @InjectPinoLogger(GeminiClient.name) private readonly logger: PinoLogger,
@@ -26,13 +25,15 @@ export class GeminiClient implements IAiClient {
   ) {
     this.costInputPerMillion = config.get<number>(ENV_VARIABLES.GEMINI.COST_INPUT_PER_MILLION, GEMINI_COST_DEFAULTS.INPUT);
     this.costOutputPerMillion = config.get<number>(ENV_VARIABLES.GEMINI.COST_OUTPUT_PER_MILLION, GEMINI_COST_DEFAULTS.OUTPUT);
+    this.generationModel = config.get<string>(ENV_VARIABLES.GEMINI.GENERATION_MODEL, GEMINI_MODEL_DEFAULTS.GENERATION);
+    this.embeddingModel = config.get<string>(ENV_VARIABLES.GEMINI.EMBEDDING_MODEL, GEMINI_MODEL_DEFAULTS.EMBEDDING);
   }
 
   async generateStructured(prompt: string, schema: AiResponseSchema): Promise<unknown> {
-    this.logger.info({ model: GENERATION_MODEL }, 'Sending structured generation request');
+    this.logger.info({ model: this.generationModel }, 'Sending structured generation request');
 
     const model = this.client.getGenerativeModel({
-      model: GENERATION_MODEL,
+      model: this.generationModel,
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: this.toGeminiSchema(schema),
@@ -57,10 +58,10 @@ export class GeminiClient implements IAiClient {
   }
 
   async generateText(systemPrompt: string, userMessage: string): Promise<string> {
-    this.logger.info({ model: GENERATION_MODEL }, 'Sending free-text generation request');
+    this.logger.info({ model: this.generationModel }, 'Sending free-text generation request');
 
     const model = this.client.getGenerativeModel({
-      model: GENERATION_MODEL,
+      model: this.generationModel,
       systemInstruction: systemPrompt,
     });
 
@@ -80,10 +81,10 @@ export class GeminiClient implements IAiClient {
   }
 
   async generateWithTools(history: AgentMessage[], tools: AgentTool[]): Promise<AgentTurnResult> {
-    this.logger.info({ model: GENERATION_MODEL, historyLength: history.length }, 'Agent turn with tools');
+    this.logger.info({ model: this.generationModel, historyLength: history.length }, 'Agent turn with tools');
 
     const model = this.client.getGenerativeModel({
-      model: GENERATION_MODEL,
+      model: this.generationModel,
       tools: [{ functionDeclarations: tools.map((t) => ({ name: t.name, description: t.description, parameters: this.toGeminiSchema(t.parameters) as FunctionDeclarationSchema })) }],
     });
 
@@ -117,10 +118,10 @@ export class GeminiClient implements IAiClient {
   // usage there and ADR-019 for why a plain @TrackAiUsage on the caller can't
   // reach this method on its own.
   async *generateTextStream(systemPrompt: string, userMessage: string): AsyncIterable<string> {
-    this.logger.info({ model: GENERATION_MODEL }, 'Sending streaming text request');
+    this.logger.info({ model: this.generationModel }, 'Sending streaming text request');
 
     const model = this.client.getGenerativeModel({
-      model: GENERATION_MODEL,
+      model: this.generationModel,
       systemInstruction: systemPrompt,
     });
 
@@ -142,9 +143,9 @@ export class GeminiClient implements IAiClient {
 
   @Resilient()
   async generateEmbedding(text: string): Promise<number[]> {
-    this.logger.info({ model: EMBEDDING_MODEL }, 'Generating embedding');
+    this.logger.info({ model: this.embeddingModel }, 'Generating embedding');
     try {
-      const model = this.client.getGenerativeModel({ model: EMBEDDING_MODEL });
+      const model = this.client.getGenerativeModel({ model: this.embeddingModel });
       const result = await model.embedContent({ content: { role: 'user', parts: [{ text }] }, outputDimensionality: 768 } as EmbedContentRequest);
       return result.embedding.values;
     } catch (err) {
@@ -240,7 +241,7 @@ export class GeminiClient implements IAiClient {
 
     this.metricsReporter.record({
       operation,
-      model: GENERATION_MODEL,
+      model: this.generationModel,
       usage,
       estimatedCostUsd: this.computeCostUsd(usage),
       durationMs,

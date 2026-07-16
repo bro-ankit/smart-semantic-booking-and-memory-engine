@@ -43,6 +43,13 @@
       "when": 1782980012609,
       "tag": "0005_add_hybrid_search",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782980118583,
+      "tag": "0006_add_metric_logs",
+      "breakpoints": true
     }
   ]
 }

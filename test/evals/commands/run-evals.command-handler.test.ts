@@ -5,10 +5,8 @@ import { EvalGoldenSetService } from '../../../src/evals/golden-set/eval-golden-
 import { RAGService } from '../../../src/bookmarks/rag/rag.service';
 import { EvalJudgeService } from '../../../src/evals/judge/eval-judge.service';
 import { EvalsRepository } from '../../../src/evals/evals.repository';
-import type { EvalRunSelect } from '../../../src/schema/eval-runs.schema';
 import type { GoldenCase } from '../../../src/evals/evals.types';
-
-const CREATED_AT = new Date('2026-05-29T00:00:00Z');
+import { mockEvalRunSelect } from '../../__mocks__/eval-run.mock';
 
 const GOLDEN_CASES: GoldenCase[] = [
   { question: 'What are Kafka consumer groups?', expectedTopics: ['partition assignment', 'rebalancing'], expectedSourceTag: 'kafka' },
@@ -18,20 +16,6 @@ const GOLDEN_CASES: GoldenCase[] = [
 const RAG_RESULT = { answer: 'Consumer groups enable parallel consumption.', contextChunks: ['[https://kafka.apache.org] Kafka partitions.'] };
 
 const JUDGE_RESULT = { relevance: 0.9, faithfulness: 0.85, reasoning: 'Good coverage of expected topics.' };
-
-const makeStoredRun = (overrides: Partial<EvalRunSelect> = {}): EvalRunSelect => ({
-  id: 'run-uuid-001',
-  goldenQuestion: 'What are Kafka consumer groups?',
-  expectedTopics: ['partition assignment', 'rebalancing'],
-  expectedSourceTag: 'kafka',
-  answer: RAG_RESULT.answer,
-  contextChunks: RAG_RESULT.contextChunks,
-  relevanceScore: 0.9,
-  faithfulnessScore: 0.85,
-  reasoning: 'Good coverage of expected topics.',
-  createdAt: CREATED_AT,
-  ...overrides,
-});
 
 describe('RunEvalsCommandHandler Unit Test', () => {
   let sut: RunEvalsCommandHandler;
@@ -53,8 +37,8 @@ describe('RunEvalsCommandHandler Unit Test', () => {
 
   describe('Given execute, When all cases succeed', () => {
     test('Then it scores each case and returns a summary with correct averages', async () => {
-      const run1 = makeStoredRun({ id: 'run-uuid-001' });
-      const run2 = makeStoredRun({ id: 'run-uuid-002', goldenQuestion: 'How does pgvector work?', expectedTopics: ['cosine distance', 'HNSW index'], expectedSourceTag: 'pgvector', relevanceScore: 0.6, faithfulnessScore: 0.65, reasoning: 'Partially covered.' });
+      const run1 = mockEvalRunSelect({ id: 'run-uuid-001' });
+      const run2 = mockEvalRunSelect({ id: 'run-uuid-002', goldenQuestion: 'How does pgvector work?', expectedTopics: ['cosine distance', 'HNSW index'], expectedSourceTag: 'pgvector', relevanceScore: 0.6, faithfulnessScore: 0.65, reasoning: 'Partially covered.' });
 
       goldenSetService.load.mockReturnValue(GOLDEN_CASES);
       ragService.execute.mockResolvedValue(RAG_RESULT);
@@ -90,7 +74,7 @@ describe('RunEvalsCommandHandler Unit Test', () => {
 
   describe('Given execute, When a case throws during RAG', () => {
     test('Then it skips the failing case and includes the remaining cases in the summary', async () => {
-      const run2 = makeStoredRun({ id: 'run-uuid-002', goldenQuestion: 'How does pgvector work?', expectedTopics: ['cosine distance', 'HNSW index'], expectedSourceTag: 'pgvector' });
+      const run2 = mockEvalRunSelect({ id: 'run-uuid-002', goldenQuestion: 'How does pgvector work?', expectedTopics: ['cosine distance', 'HNSW index'], expectedSourceTag: 'pgvector' });
 
       goldenSetService.load.mockReturnValue(GOLDEN_CASES);
       ragService.execute
@@ -123,8 +107,8 @@ describe('RunEvalsCommandHandler Unit Test', () => {
 
   describe('Given execute, When all cases score above threshold', () => {
     test('Then weakCases is empty', async () => {
-      const run1 = makeStoredRun({ relevanceScore: 0.95, faithfulnessScore: 0.95 });
-      const run2 = makeStoredRun({ id: 'run-uuid-002', relevanceScore: 0.9, faithfulnessScore: 0.9 });
+      const run1 = mockEvalRunSelect({ relevanceScore: 0.95, faithfulnessScore: 0.95 });
+      const run2 = mockEvalRunSelect({ id: 'run-uuid-002', relevanceScore: 0.9, faithfulnessScore: 0.9 });
 
       goldenSetService.load.mockReturnValue(GOLDEN_CASES);
       ragService.execute.mockResolvedValue(RAG_RESULT);

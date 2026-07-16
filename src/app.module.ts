@@ -21,6 +21,10 @@ import { ENV_VARIABLES } from './constants/env.constants';
         transport: process.env.NODE_ENV !== 'production'
           ? { target: 'pino-pretty' }
           : undefined,
+        redact: {
+          paths: ['req.headers.cookie', 'req.headers.authorization', 'req.headers["x-api-key"]'],
+          censor: '[REDACTED]',
+        },
       },
     }),
     BullModule.forRootAsync({

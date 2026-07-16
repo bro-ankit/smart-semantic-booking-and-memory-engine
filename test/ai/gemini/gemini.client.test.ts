@@ -1,5 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 import { TestBed } from '@automock/jest';
+import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { GeminiClient } from '../../../src/ai/gemini/gemini.client';
 import { GEMINI_CLIENT } from '../../../src/ai/gemini/gemini.constants';
@@ -65,7 +66,11 @@ describe('GeminiClient Unit Test', () => {
   });
 
   beforeAll(() => {
-    const { unit, unitRef } = TestBed.create(GeminiClient).compile();
+    const { unit, unitRef } = TestBed.create(GeminiClient)
+      .mock(ConfigService)
+      .using({ get: (_key: string, defaultValue?: unknown) => defaultValue })
+      .compile();
+
     sut = unit;
     geminiClient = unitRef.get<GoogleGenerativeAI>(GEMINI_CLIENT);
     metricsReporter = unitRef.get(MetricsReporter);
@@ -94,7 +99,7 @@ describe('GeminiClient Unit Test', () => {
 
         expect(result).toEqual(PARSED_RESPONSE);
         expect(geminiClient.getGenerativeModel).toHaveBeenCalledWith({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.5-flash',
           generationConfig: {
             responseMimeType: 'application/json',
             responseSchema: EXPECTED_GEMINI_SCHEMA,
@@ -142,7 +147,7 @@ describe('GeminiClient Unit Test', () => {
 
         expect(result).toBe(LLM_ANSWER);
         expect(geminiClient.getGenerativeModel).toHaveBeenCalledWith({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.5-flash',
           systemInstruction: SYSTEM_PROMPT,
         });
         expect(mockGenerateContent).toHaveBeenCalledWith(USER_MESSAGE);
@@ -294,7 +299,7 @@ describe('GeminiClient Unit Test', () => {
 
         expect(chunks).toEqual(['Kafka ', 'preserves order.']);
         expect(geminiClient.getGenerativeModel).toHaveBeenCalledWith({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.5-flash',
           systemInstruction: SYSTEM_PROMPT,
         });
         expect(mockGenerateContentStream).toHaveBeenCalledWith(USER_MESSAGE);
@@ -314,7 +319,7 @@ describe('GeminiClient Unit Test', () => {
         expect(metricsReporter.record).toHaveBeenCalledWith(
           expect.objectContaining({
             operation: 'RAG_ASK',
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.5-flash',
             usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
             durationMs: expect.any(Number),
           }),
@@ -354,7 +359,7 @@ describe('GeminiClient Unit Test', () => {
         expect(metricsReporter.record).toHaveBeenCalledWith(
           expect.objectContaining({
             operation: 'RAG_ASK',
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.5-flash',
             usage: { promptTokens: 50, completionTokens: 20, totalTokens: 70 },
             durationMs: expect.any(Number),
           }),

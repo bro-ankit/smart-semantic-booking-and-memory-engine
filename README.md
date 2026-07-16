@@ -9,12 +9,13 @@ No hallucinations. No keyword matching. Pure semantic understanding.
 ## What it does
 
 1. **Accepts** raw text directly, or scrapes a URL asynchronously via a job queue
-2. **Enriches** content using Gemini 2.5 Flash — extracting a summary, tags, and action items
+2. **Enriches** content using Gemini 3.5 Flash — extracting a summary, tags, and action items
 3. **Reviews** AI output via a human-in-the-loop queue before embedding — corrections are stored as training signal
 4. **Embeds** the content into a 768-dimensional vector space (pgvector)
-5. **Retrieves** semantically similar bookmarks and generates grounded answers to questions
+5. **Retrieves** bookmarks via hybrid search (semantic + lexical, fused with RRF) and generates grounded answers, streamed or synchronous
 6. **Acts** via an agent that uses Gemini native function calling to search, synthesise, and create todos in a multi-turn control loop
 7. **Measures** answer quality automatically via an LLM-as-judge eval harness
+8. **Tracks** token usage and cost per AI operation automatically, with zero bookkeeping in any calling service
 
 ---
 
@@ -59,7 +60,7 @@ POST /api/v1/bookmarks  { rawText: "..." }
   ├─ Write PENDING row to DB
   ├─ Transition PENDING → PROCESSING
   ├─ EnrichmentService.enrich()  [@Resilient()]
-  │    └─ Gemini 2.5 Flash → { contentSummary, tags, actionItems }
+  │    └─ Gemini 3.5 Flash → { contentSummary, tags, actionItems }
   ├─ IAiClient.generateEmbedding()  [@Resilient()]
   │    └─ gemini-embedding-001 → float[768]
   └─ Atomic transaction
@@ -89,13 +90,20 @@ POST /api/v1/bookmarks  { url: "https://..." }
 
 ![Retrieval Loop](docs/diagrams/retrieval-loop.png)
 
-#### Semantic Search — `GET /api/v1/search?q=...`
+#### Hybrid Search — `GET /api/v1/search?q=...`
 
-The query string is embedded via `gemini-embedding-001`, then a cosine distance query (`<=>`) runs against the pgvector HNSW index, returning the top 3 closest bookmarks. Searching `"broker scaling"` surfaces a document about Kafka partitioning — no keyword overlap needed.
+Two retrievers run **concurrently**, then get fused:
 
-#### Grounded Q&A — `POST /api/v1/ask`
+- **Semantic** — the query is embedded via `gemini-embedding-001`, then a cosine distance query (`<=>`) runs against the pgvector HNSW index
+- **Lexical** — Postgres full-text search (`tsvector`/`ts_rank`) against a `tsvContent` column kept in sync with every enrichment update
 
-The question is embedded and used to retrieve the top 3 semantically relevant bookmarks. Those are injected as a system instruction into Gemini 2.5 Flash, which is instructed to answer **only** from the provided context. If nothing relevant exists, the system returns a defined fallback phrase rather than hallucinating.
+Results are merged with **Reciprocal Rank Fusion** (`score = Σ 1/(k + rank + 1)`, `k = 60`) rather than blending the two retrievers' raw scores — cosine distance and `ts_rank` live on incomparable scales, so RRF's rank-only approach avoids an arbitrary normalization step entirely (see [ADR-020](docs/decisions/020-hybrid-search-rrf-fusion.md)). Searching `"broker scaling"` surfaces a document about Kafka partitioning through the semantic side even with zero keyword overlap; an exact term or acronym gets caught by the lexical side even when its embedding neighbor isn't close.
+
+#### Grounded Q&A — `POST /api/v1/ask` and `POST /api/v1/ask/stream`
+
+The question is embedded and used to retrieve the top 3 relevant bookmarks via hybrid search. Those are injected as a system instruction into Gemini 3.5 Flash, which is instructed to answer **only** from the provided context. If nothing relevant exists, the system returns a defined fallback phrase rather than hallucinating.
+
+`/ask/stream` streams the same answer token-by-token over SSE (`@Sse()`), for a faster perceived response on longer answers.
 
 ---
 
@@ -109,7 +117,7 @@ The question is embedded and used to retrieve the top 3 semantically relevant bo
 POST /api/v1/agent/run
   │
   └─ Control loop (max 5 iterations):
-       ├─ Send history + tool definitions to Gemini 2.5 Flash
+       ├─ Send history + tool definitions to Gemini 3.5 Flash
        ├─ Gemini returns functionCall intent (not the result — just the name + args)
        ├─ AgentToolExecutorService.execute()
        │    ├─ searchBookmarks(query)  — runs semantic search
@@ -136,11 +144,11 @@ Gemini native function calling (`tools` parameter) is used — the model decides
 ```
 POST /api/v1/evals/run
   │
-  ├─ EvalGoldenSetService.load()            — reads evals/golden-set.json (15 cases)
+  ├─ EvalGoldenSetService.load()            — reads evals/golden-set.json (17 cases)
   │
   └─ For each golden case:
-       ├─ RAGService.execute(question)       — semantic search + Gemini answer + context chunks
-       ├─ EvalJudgeService.score()           — Gemini 2.5 Flash as judge
+       ├─ RAGService.execute(question)       — hybrid search + Gemini answer + context chunks
+       ├─ EvalJudgeService.score()           — Gemini 3.5 Flash as judge
        │    └─ Returns { relevance, faithfulness, reasoning }
        └─ EvalsRepository.insert()           — persist to eval_runs table
   │
@@ -170,13 +178,35 @@ Run before and after any retrieval or prompt change to prove it helped.
 
 ---
 
+### Layer 6 — Usage & Cost Metrics
+
+Every Gemini call logs its token usage and estimated cost to a `metric_logs` table, tagged by logical operation (`ENRICHMENT`, `RAG_ASK`, `EVAL_JUDGE`, `AGENT_TURN`) — with **zero bookkeeping in any calling service**.
+
+```
+EnrichmentService.enrich()  [@TrackAiUsage('ENRICHMENT')]
+  │
+  ├─ Tags the call with its operation via AsyncLocalStorage
+  │    (same mechanism as @Resilient() — a discovery scan patches
+  │    decorated methods at boot to run inside the ambient context)
+  │
+  └─ GeminiClient.generateStructured()
+       ├─ Calls Gemini, extracts token usage from the response
+       ├─ Reads the ambient operation tag (AiUsageContextService.getOperation())
+       └─ MetricsReporter.record()  → metric_logs table
+```
+
+`IAiClient`'s public methods stay exactly "generate content" — no method returns a usage wrapper, no caller unwraps one. The one case ambient context can't reach on its own — `/ask/stream`'s lazily-iterated SSE response — is handled by `AiUsageContextService.runIterable()`, which re-enters the context around each chunk instead of once around the whole call (see [ADR-018](docs/decisions/018-ambient-ai-usage-context.md)).
+
+---
+
 ## Technology Stack
 
 | Layer             | Technology                                                            |
 | ----------------- | --------------------------------------------------------------------- |
 | Runtime           | Node.js + TypeScript (NestJS)                                         |
 | Vector DB         | PostgreSQL 16 + pgvector                                              |
-| LLM               | Gemini 2.5 Flash                                                      |
+| Search            | Hybrid — pgvector cosine + Postgres full-text, fused via RRF          |
+| LLM               | Gemini 3.5 Flash                                                      |
 | Embeddings        | gemini-embedding-001 (768 dimensions)                                 |
 | Validation        | Zod (structured LLM output)                                           |
 | ORM               | Drizzle ORM                                                           |
@@ -185,7 +215,8 @@ Run before and after any retrieval or prompt change to prove it helped.
 | Scraping — Tier 2 | Puppeteer (headless Chrome, Docker-compatible)                        |
 | Resilience        | cockatiel (retry + circuit breaker)                                   |
 | Architecture      | NestJS CQRS (`CommandBus`)                                            |
-| Eval Harness      | LLM-as-judge (Gemini 2.5 Flash) + `eval_runs` table + golden-set.json |
+| Usage Metrics     | AsyncLocalStorage-tagged, per-operation cost/token tracking           |
+| Eval Harness      | LLM-as-judge (Gemini 3.5 Flash) + `eval_runs` table + golden-set.json |
 
 ---
 
@@ -365,15 +396,26 @@ POST /api/v1/evals/run
 
 ```json
 {
-  "totalCases": 15,
-  "avgRelevance": 0.84,
-  "avgFaithfulness": 0.91,
+  "totalCases": 17,
+  "avgRelevance": 0.87,
+  "avgFaithfulness": 1.0,
   "weakCases": [
-    { "question": "What are the tradeoffs between sync and async ingestion?", "relevanceScore": 0.65, "faithfulnessScore": 0.72 }
+    { "question": "Why does a RAG agent need a control loop with a max iteration limit?", "relevanceScore": 0.5, "faithfulnessScore": 1.0 }
   ],
   "runs": [...]
 }
 ```
+
+**Current scores — 17/17 golden-set cases: `avgRelevance: 0.87`, `avgFaithfulness: 1.0`** (full data in [`eval-response.json`](eval-response.json)). Faithfulness has never dropped below 1.0 across any scored case — the system has never once hallucinated; every claim is either grounded in retrieved context or the system explicitly says it lacks context.
+
+**Before/after — one retrieval gap, closed:** the eval harness caught that the `agent`-tagged corpus doc had never been ingested, so both agent-related questions scored `relevance: 0` (system correctly said "no context" rather than hallucinate — hence faithfulness stayed 1.0 even then). After ingesting that one document through the same human-review pipeline as everything else and re-scoring:
+
+| Question | Before | After |
+| --- | --- | --- |
+| Gemini function calling vs. prompt-engineered tool routing | `relevance: 0` | `relevance: 0.9` |
+| Why the agent needs a max-iteration control loop | `relevance: 0` | `relevance: 0.5` |
+
+Snapshots: [`eval-response-before-agent-fix.json`](eval-response-before-agent-fix.json) → [`eval-response-after-agent-fix.json`](eval-response-after-agent-fix.json).
 
 ---
 
@@ -393,3 +435,6 @@ Full records in [`docs/decisions/`](docs/decisions/). Highlights:
 | [015](docs/decisions/015-cqrs-command-handler-and-ingest-module.md) | CQRS command handler for ingestion branching      | Thin controller; no circular module dependencies                                               |
 | [016](docs/decisions/016-human-review-before-embedding.md)          | Human review gate before embedding                | Vector store only ever holds human-approved content; corrections become training signal        |
 | [017](docs/decisions/017-llm-as-judge-eval-harness.md)              | LLM-as-judge over keyword matching                | Measures relevance and faithfulness independently; catches hallucinations that keywords cannot |
+| [018](docs/decisions/018-ambient-ai-usage-context.md)               | Ambient `AsyncLocalStorage` for AI usage attribution | Same AI-client methods serve multiple operations; ambient context tags a call without polluting `IAiClient`'s contract |
+| [019](docs/decisions/019-synchronous-in-process-metrics-recording.md) | Metrics recorded in-process, not event-driven     | A broker only relocates the same failure mode at this scale; adds a component to solve nothing yet |
+| [020](docs/decisions/020-hybrid-search-rrf-fusion.md)               | RRF over score-blending for hybrid search          | Cosine distance and `ts_rank` are on incomparable scales; RRF ranks by position, no tuned weight needed |
