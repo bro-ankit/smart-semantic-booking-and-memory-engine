@@ -1,18 +1,28 @@
 import { TestBed } from '@automock/jest';
-import { ReviewBookmarkCommandHandler } from '../../../src/bookmarks/review/review-bookmark.command-handler';
-import { ReviewBookmarkCommand } from '../../../src/bookmarks/review/review-bookmark.command';
+
 import { BookmarksRepository } from '../../../src/bookmarks/bookmarks.repository';
 import { CorrectionsRepository } from '../../../src/bookmarks/corrections.repository';
+import { ReviewBookmarkCommand } from '../../../src/bookmarks/review/review-bookmark.command';
+import { ReviewBookmarkCommandHandler } from '../../../src/bookmarks/review/review-bookmark.command-handler';
 import { IngestService } from '../../../src/ingest/ingest.service';
-import { AssertUtils } from '../../utils/assert.utils';
 import { mockBookmarkSelect, mockCorrectionSelect } from '../../__mocks__/bookmark.mock';
+import { AssertUtils } from '../../utils/assert.utils';
 
 const BOOKMARK_ID = 'bookmark-uuid-001';
 const ORIGINAL_URL = 'https://example.com/kafka-partitioning';
 const CREATED_AT = new Date('2026-05-29T00:00:00Z');
 const EMBEDDING = new Array(768).fill(0.01);
 
-const BASE_DTO = { originalUrl: ORIGINAL_URL, contentSummary: '', tags: [], errorMessage: null, aiContentSummary: '', aiTags: [], aiActionItems: [], createdAt: CREATED_AT };
+const BASE_DTO = {
+  originalUrl: ORIGINAL_URL,
+  contentSummary: '',
+  tags: [],
+  errorMessage: null,
+  aiContentSummary: '',
+  aiTags: [],
+  aiActionItems: [],
+  createdAt: CREATED_AT,
+};
 
 describe('ReviewBookmarkCommandHandler Unit Test', () => {
   let sut: ReviewBookmarkCommandHandler;
@@ -72,7 +82,10 @@ describe('ReviewBookmarkCommandHandler Unit Test', () => {
         const result = await sut.execute(new ReviewBookmarkCommand(BOOKMARK_ID, { approved: true }));
 
         expect(ingestService.embedAndComplete).toHaveBeenCalledWith(
-          BOOKMARK_ID, REVIEW_PENDING.aiContentSummary, REVIEW_PENDING.aiTags, REVIEW_PENDING.aiActionItems,
+          BOOKMARK_ID,
+          REVIEW_PENDING.aiContentSummary,
+          REVIEW_PENDING.aiTags,
+          REVIEW_PENDING.aiActionItems,
         );
         expect(correctionsRepository.insert).toHaveBeenCalledWith({
           bookmarkId: BOOKMARK_ID,
@@ -89,15 +102,28 @@ describe('ReviewBookmarkCommandHandler Unit Test', () => {
       test('Then it embeds using edited values, logs the correction delta, and returns the completed DTO', async () => {
         const editedSummary = 'Human-corrected summary.';
         const editedTags = ['kafka', 'corrected'];
-        const editedCompleted = mockBookmarkSelect({ id: BOOKMARK_ID, status: 'COMPLETED', contentSummary: editedSummary });
+        const editedCompleted = mockBookmarkSelect({
+          id: BOOKMARK_ID,
+          status: 'COMPLETED',
+          contentSummary: editedSummary,
+        });
 
         bookmarksRepository.findById.mockResolvedValue(REVIEW_PENDING);
         ingestService.embedAndComplete.mockResolvedValue(editedCompleted);
-        correctionsRepository.insert.mockResolvedValue(mockCorrectionSelect({ bookmarkId: BOOKMARK_ID, humanSummary: editedSummary, humanTags: editedTags }));
+        correctionsRepository.insert.mockResolvedValue(
+          mockCorrectionSelect({ bookmarkId: BOOKMARK_ID, humanSummary: editedSummary, humanTags: editedTags }),
+        );
 
-        const result = await sut.execute(new ReviewBookmarkCommand(BOOKMARK_ID, { approved: true, editedSummary, editedTags }));
+        const result = await sut.execute(
+          new ReviewBookmarkCommand(BOOKMARK_ID, { approved: true, editedSummary, editedTags }),
+        );
 
-        expect(ingestService.embedAndComplete).toHaveBeenCalledWith(BOOKMARK_ID, editedSummary, editedTags, REVIEW_PENDING.aiActionItems);
+        expect(ingestService.embedAndComplete).toHaveBeenCalledWith(
+          BOOKMARK_ID,
+          editedSummary,
+          editedTags,
+          REVIEW_PENDING.aiActionItems,
+        );
         expect(correctionsRepository.insert).toHaveBeenCalledWith({
           bookmarkId: BOOKMARK_ID,
           aiSummary: REVIEW_PENDING.aiContentSummary,
@@ -111,9 +137,7 @@ describe('ReviewBookmarkCommandHandler Unit Test', () => {
 
     describe('When rejected', () => {
       test('Then it marks FAILED with HUMAN_REJECTED, skips embed and correction, and returns the failed DTO', async () => {
-        bookmarksRepository.findById
-          .mockResolvedValueOnce(REVIEW_PENDING)
-          .mockResolvedValueOnce(FAILED);
+        bookmarksRepository.findById.mockResolvedValueOnce(REVIEW_PENDING).mockResolvedValueOnce(FAILED);
         bookmarksRepository.updateStatus.mockResolvedValue(undefined);
 
         const result = await sut.execute(new ReviewBookmarkCommand(BOOKMARK_ID, { approved: false }));

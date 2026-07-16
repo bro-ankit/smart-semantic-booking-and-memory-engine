@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
 import { AsyncLocalStorage } from 'node:async_hooks';
+
+import { Injectable } from '@nestjs/common';
+
 import type { MetricOperation } from '../schema/metric-logs.schema';
 
 export type AiUsageStore = { operation: MetricOperation };

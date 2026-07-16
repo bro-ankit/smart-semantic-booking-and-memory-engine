@@ -1,10 +1,12 @@
 import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
+
 import { ValidationPipe } from '@nestjs/common';
-import { Logger } from 'nestjs-pino';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Logger } from 'nestjs-pino';
+
+import { AppModule } from './app.module';
 import { ENV_VARIABLES } from './constants/env.constants';
 
 const API_PREFIX = 'api/v1';

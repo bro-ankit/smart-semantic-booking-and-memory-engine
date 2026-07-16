@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LoggerModule } from 'nestjs-pino';
-import { ResiliencePolicyRegistry } from '../../src/resilience/resilience-policy.registry';
+
 import { ResilienceService } from '../../src/resilience/resilience.service';
+import { ResiliencePolicyRegistry } from '../../src/resilience/resilience-policy.registry';
 
 const mockPolicy = { execute: jest.fn() };
 const mockRegistry = { getOrCreate: jest.fn().mockReturnValue(mockPolicy) };
@@ -12,10 +13,7 @@ describe('ResilienceService Unit Test', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [LoggerModule.forRoot()],
-      providers: [
-        ResilienceService,
-        { provide: ResiliencePolicyRegistry, useValue: mockRegistry },
-      ],
+      providers: [ResilienceService, { provide: ResiliencePolicyRegistry, useValue: mockRegistry }],
     }).compile();
 
     sut = module.get(ResilienceService);

@@ -1,12 +1,16 @@
 import { TestBed } from '@automock/jest';
-import { RunAgentCommandHandler } from '../../../src/agent/commands/run-agent.command-handler';
+
 import { RunAgentCommand } from '../../../src/agent/commands/run-agent.command';
+import { RunAgentCommandHandler } from '../../../src/agent/commands/run-agent.command-handler';
 import { AgentToolExecutorService } from '../../../src/agent/tools/agent-tool-executor.service';
 import { AI_CLIENT } from '../../../src/ai/ai.constants';
 import type { IAiClient } from '../../../src/ai/ai.interface';
 
 const QUESTION = 'What do I know about Kafka?';
-const SEARCH_RESULT = { found: 1, bookmarks: [{ id: 'bm-001', summary: 'Kafka partitioning guide.', tags: ['kafka'], url: 'https://kafka.apache.org' }] };
+const SEARCH_RESULT = {
+  found: 1,
+  bookmarks: [{ id: 'bm-001', summary: 'Kafka partitioning guide.', tags: ['kafka'], url: 'https://kafka.apache.org' }],
+};
 const FINAL_ANSWER = 'Based on your bookmarks, Kafka uses partitions to achieve parallelism.';
 
 describe('RunAgentCommandHandler Unit Test', () => {
@@ -66,13 +70,20 @@ describe('RunAgentCommandHandler Unit Test', () => {
       const result = await sut.execute(new RunAgentCommand(QUESTION));
 
       expect(result.truncated).toBe(false);
-      expect(result.toolCallTrace[0]?.result).toMatchObject({ error: true, message: expect.stringContaining('DB connection lost') });
+      expect(result.toolCallTrace[0]?.result).toMatchObject({
+        error: true,
+        message: expect.stringContaining('DB connection lost'),
+      });
     });
   });
 
   describe('Given execute, When the agent hits the max iteration limit', () => {
     test('Then it returns truncated:true with the last tool result as partial answer', async () => {
-      aiClient.generateWithTools.mockResolvedValue({ type: 'tool_call', toolName: 'searchBookmarks', args: { query: 'Kafka' } });
+      aiClient.generateWithTools.mockResolvedValue({
+        type: 'tool_call',
+        toolName: 'searchBookmarks',
+        args: { query: 'Kafka' },
+      });
       toolExecutor.execute.mockResolvedValue(SEARCH_RESULT);
 
       const result = await sut.execute(new RunAgentCommand(QUESTION));

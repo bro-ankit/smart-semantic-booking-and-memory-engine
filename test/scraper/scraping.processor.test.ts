@@ -1,9 +1,10 @@
 import { TestBed } from '@automock/jest';
 import type { Job } from 'bullmq';
-import { ScrapingProcessor } from '../../src/scraper/scraping.processor';
-import { ScraperService } from '../../src/scraper/scraper.service';
+
 import { IngestService } from '../../src/ingest/ingest.service';
 import type { ScrapingJobData } from '../../src/scraper/scraper.constants';
+import { ScraperService } from '../../src/scraper/scraper.service';
+import { ScrapingProcessor } from '../../src/scraper/scraping.processor';
 import { mockBookmarkSelect } from '../__mocks__/bookmark.mock';
 
 function mockJob(data: ScrapingJobData, attemptsMade = 0): Job<ScrapingJobData> {
@@ -44,7 +45,6 @@ describe('ScrapingProcessor Unit Test', () => {
       const processOrder = ingestService.processRawText.mock.invocationCallOrder[0]!;
 
       expect(processOrder).toBeGreaterThan(scrapeOrder);
-
     });
   });
-})
+});

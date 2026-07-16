@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { ResiliencePolicyRegistry } from './resilience-policy.registry';
 import type { ResiliencePolicyOptions } from './resilience-policy.types';
 

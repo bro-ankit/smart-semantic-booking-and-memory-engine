@@ -1,6 +1,7 @@
 import { TestBed } from '@automock/jest';
-import { SearchQueryHandler } from '../../../src/bookmarks/search/search.query-handler';
+
 import { SearchQuery } from '../../../src/bookmarks/search/search.query';
+import { SearchQueryHandler } from '../../../src/bookmarks/search/search.query-handler';
 import { SearchService } from '../../../src/bookmarks/search/search.service';
 import { mockBookmarkSelect } from '../../__mocks__/bookmark.mock';
 

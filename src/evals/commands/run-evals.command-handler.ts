@@ -1,16 +1,17 @@
-import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { ConfigService } from '@nestjs/config';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { plainToInstance } from 'class-transformer';
-import { RunEvalsCommand } from './run-evals.command';
-import { EvalsRepository } from '../evals.repository';
-import { EvalJudgeService } from '../judge/eval-judge.service';
-import { EvalGoldenSetService } from '../golden-set/eval-golden-set.service';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { RAGService } from '../../bookmarks/rag/rag.service';
-import { RunEvalsResponseDto } from '../dto/run-evals-response.dto';
-import { EVAL_WEAK_THRESHOLD } from '../evals.constants';
 import { ENV_VARIABLES } from '../../constants/env.constants';
 import type { EvalRunSelect } from '../../schema/eval-runs.schema';
+import { RunEvalsResponseDto } from '../dto/run-evals-response.dto';
+import { EVAL_WEAK_THRESHOLD } from '../evals.constants';
+import { EvalsRepository } from '../evals.repository';
+import { EvalGoldenSetService } from '../golden-set/eval-golden-set.service';
+import { EvalJudgeService } from '../judge/eval-judge.service';
+import { RunEvalsCommand } from './run-evals.command';
 
 const DTO_OPTIONS = { excludeExtraneousValues: true } as const;
 
@@ -59,7 +60,12 @@ export class RunEvalsCommandHandler implements ICommandHandler<RunEvalsCommand, 
         });
         stored.push(run);
         this.logger.info(
-          { question: goldenCase.question, relevance: scores.relevance, faithfulness: scores.faithfulness, case: `${i + 1}/${goldenCases.length}` },
+          {
+            question: goldenCase.question,
+            relevance: scores.relevance,
+            faithfulness: scores.faithfulness,
+            case: `${i + 1}/${goldenCases.length}`,
+          },
           'Eval case scored',
         );
       } catch (err) {
@@ -82,7 +88,11 @@ export class RunEvalsCommandHandler implements ICommandHandler<RunEvalsCommand, 
 
     const weakCases = runs
       .filter((r) => r.relevanceScore < EVAL_WEAK_THRESHOLD || r.faithfulnessScore < EVAL_WEAK_THRESHOLD)
-      .map((r) => ({ question: r.goldenQuestion, relevanceScore: r.relevanceScore, faithfulnessScore: r.faithfulnessScore }));
+      .map((r) => ({
+        question: r.goldenQuestion,
+        relevanceScore: r.relevanceScore,
+        faithfulnessScore: r.faithfulnessScore,
+      }));
 
     return plainToInstance(
       RunEvalsResponseDto,

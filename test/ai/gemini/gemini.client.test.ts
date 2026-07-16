@@ -1,13 +1,14 @@
-import { HttpStatus } from '@nestjs/common';
 import { TestBed } from '@automock/jest';
-import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { HttpStatus } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+import type { AgentMessage, AgentTool, AiResponseSchema } from '../../../src/ai/ai.interface';
 import { GeminiClient } from '../../../src/ai/gemini/gemini.client';
 import { GEMINI_CLIENT } from '../../../src/ai/gemini/gemini.constants';
-import type { AiResponseSchema, AgentMessage, AgentTool } from '../../../src/ai/ai.interface';
-import { AssertUtils } from '../../utils/assert.utils';
-import { MetricsReporter } from '../../../src/metrics/metrics.reporter';
 import { AiUsageContextService } from '../../../src/metrics/ai-usage-context.service';
+import { MetricsReporter } from '../../../src/metrics/metrics.reporter';
+import { AssertUtils } from '../../utils/assert.utils';
 
 const PROMPT = 'Extract structured data from this text about Kafka partitioning.';
 const SAMPLE_TEXT = 'NestJS dependency injection patterns for scalable services';
@@ -15,9 +16,7 @@ const SYSTEM_PROMPT = 'Answer only from the provided context.';
 const USER_MESSAGE = 'How does Kafka handle message ordering?';
 const LLM_ANSWER = 'Kafka preserves order within a partition.';
 
-const AGENT_HISTORY: AgentMessage[] = [
-  { role: 'user', text: 'What do I know about Kafka?' },
-];
+const AGENT_HISTORY: AgentMessage[] = [{ role: 'user', text: 'What do I know about Kafka?' }];
 const AGENT_TOOLS: AgentTool[] = [
   {
     name: 'searchBookmarks',
@@ -289,7 +288,9 @@ describe('GeminiClient Unit Test', () => {
       test('Then it yields each chunk of text as it arrives', async () => {
         mockGenerateContentStream.mockResolvedValueOnce({
           stream: asyncIterableOf([{ text: () => 'Kafka ' }, { text: () => 'preserves order.' }]),
-          response: Promise.resolve({ usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 } }),
+          response: Promise.resolve({
+            usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+          }),
         });
 
         const chunks: string[] = [];
@@ -309,7 +310,9 @@ describe('GeminiClient Unit Test', () => {
         usageContext.getOperation.mockReturnValue('RAG_ASK');
         mockGenerateContentStream.mockResolvedValueOnce({
           stream: asyncIterableOf([{ text: () => LLM_ANSWER }]),
-          response: Promise.resolve({ usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 } }),
+          response: Promise.resolve({
+            usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+          }),
         });
 
         for await (const _chunk of sut.generateTextStream(SYSTEM_PROMPT, USER_MESSAGE)) {

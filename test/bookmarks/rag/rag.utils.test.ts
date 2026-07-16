@@ -1,5 +1,5 @@
-import { RagUtils } from '../../../src/bookmarks/rag/rag.utils';
 import type { SearchResultDto } from '../../../src/bookmarks/dto/search-result.dto';
+import { RagUtils } from '../../../src/bookmarks/rag/rag.utils';
 
 describe('RagUtils Unit Test', () => {
   const BOOKMARK_1: SearchResultDto = {

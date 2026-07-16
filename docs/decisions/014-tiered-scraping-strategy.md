@@ -7,10 +7,10 @@
 
 URL content extraction requires fetching and parsing HTML. Two approaches exist:
 
-| Approach | Startup cost | Works on SPAs | Cost |
-|----------|-------------|---------------|------|
-| `fetch` + HTML parser | ~5–50ms | No | Free |
-| Puppeteer (headless Chrome) | ~2–5s | Yes | ~250MB RAM per instance |
+| Approach                    | Startup cost | Works on SPAs | Cost                    |
+| --------------------------- | ------------ | ------------- | ----------------------- |
+| `fetch` + HTML parser       | ~5–50ms      | No            | Free                    |
+| Puppeteer (headless Chrome) | ~2–5s        | Yes           | ~250MB RAM per instance |
 
 The naïve production choice is Puppeteer for everything — it handles all pages. The cost is unacceptable: every scrape spins up a full Chrome process, burning ~5 seconds and ~250MB of RAM. Under any load this creates memory pressure and slows throughput significantly.
 
@@ -33,6 +33,7 @@ attempt fetch + @mozilla/readability
 Native `fetch` with a `BookmarkBot` user-agent header. On a 200 response, the body is parsed with `@mozilla/readability` (Firefox's Reader Mode algorithm), which strips navigation, ads, footers, and sidebars — leaving only the article content. This handles all server-side-rendered pages: documentation sites, GitHub files, blog posts, technical articles.
 
 `@mozilla/readability` is preferred over Cheerio because:
+
 - It extracts semantic article content, not raw DOM text
 - It handles common page layouts (article, section, main) intelligently
 - It produces consistent output without per-site CSS selectors

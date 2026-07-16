@@ -22,6 +22,7 @@ The eval runs on demand via `POST /api/v1/evals/run` and persists every score to
 Keyword matching is deterministic and free, but it has no understanding of semantics. "Partition reassignment" and "rebalancing of topic partitions" score differently despite meaning the same thing. It also cannot distinguish between a relevant-but-hallucinated answer and a relevant-and-grounded answer — the two failure modes that actually matter for a RAG system.
 
 The two scores measure orthogonal concerns:
+
 - **relevance** — does the answer address the question?
 - **faithfulness** — is every claim grounded in the retrieved context, or is the model inventing facts?
 

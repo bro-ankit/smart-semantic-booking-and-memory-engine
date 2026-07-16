@@ -1,10 +1,11 @@
 import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { z } from 'zod';
+
 import { AI_CLIENT } from '../../ai/ai.constants';
-import type { IAiClient, AiResponseSchema } from '../../ai/ai.interface';
-import type { EvalJudgeInput, EvalJudgeResult } from '../evals.types';
+import type { AiResponseSchema, IAiClient } from '../../ai/ai.interface';
 import { TrackAiUsage } from '../../metrics/track-ai-usage.decorator';
+import type { EvalJudgeInput, EvalJudgeResult } from '../evals.types';
 
 const JUDGE_AI_SCHEMA: AiResponseSchema = {
   type: 'object',
@@ -46,9 +47,8 @@ export class EvalJudgeService {
   }
 
   private buildJudgePrompt(input: EvalJudgeInput): string {
-    const context = input.contextChunks.length > 0
-      ? input.contextChunks.join('\n---\n')
-      : '(no context retrieved from vector store)';
+    const context =
+      input.contextChunks.length > 0 ? input.contextChunks.join('\n---\n') : '(no context retrieved from vector store)';
 
     return [
       'You are an expert AI system evaluator judging answers from a RAG (Retrieval-Augmented Generation) system.',

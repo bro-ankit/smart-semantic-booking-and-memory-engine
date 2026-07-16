@@ -1,8 +1,9 @@
 import { TestBed } from '@automock/jest';
-import { SearchService } from '../../../src/bookmarks/search/search.service';
-import { BookmarksRepository } from '../../../src/bookmarks/bookmarks.repository';
+
 import { AI_CLIENT } from '../../../src/ai/ai.constants';
 import type { IAiClient } from '../../../src/ai/ai.interface';
+import { BookmarksRepository } from '../../../src/bookmarks/bookmarks.repository';
+import { SearchService } from '../../../src/bookmarks/search/search.service';
 import { mockBookmarkSelect } from '../../__mocks__/bookmark.mock';
 
 describe('SearchService Unit Test', () => {
@@ -14,9 +15,27 @@ describe('SearchService Unit Test', () => {
   const EMBEDDING = new Array(768).fill(0.05);
 
   const BOOKMARKS = {
-    'id-1': mockBookmarkSelect({ id: 'id-1', originalUrl: 'https://example.com/kafka-partitioning', contentSummary: 'Kafka partitioning and ordering guarantees.', tags: ['kafka', 'streaming'], status: 'COMPLETED' }),
-    'id-2': mockBookmarkSelect({ id: 'id-2', originalUrl: 'https://example.com/kafka-consumers', contentSummary: 'Consumer group rebalancing in Apache Kafka.', tags: ['kafka', 'consumers'], status: 'COMPLETED' }),
-    'id-3': mockBookmarkSelect({ id: 'id-3', originalUrl: 'https://example.com/event-streaming', contentSummary: 'Event streaming patterns for distributed systems.', tags: ['events', 'distributed'], status: 'COMPLETED' }),
+    'id-1': mockBookmarkSelect({
+      id: 'id-1',
+      originalUrl: 'https://example.com/kafka-partitioning',
+      contentSummary: 'Kafka partitioning and ordering guarantees.',
+      tags: ['kafka', 'streaming'],
+      status: 'COMPLETED',
+    }),
+    'id-2': mockBookmarkSelect({
+      id: 'id-2',
+      originalUrl: 'https://example.com/kafka-consumers',
+      contentSummary: 'Consumer group rebalancing in Apache Kafka.',
+      tags: ['kafka', 'consumers'],
+      status: 'COMPLETED',
+    }),
+    'id-3': mockBookmarkSelect({
+      id: 'id-3',
+      originalUrl: 'https://example.com/event-streaming',
+      contentSummary: 'Event streaming patterns for distributed systems.',
+      tags: ['events', 'distributed'],
+      status: 'COMPLETED',
+    }),
   };
 
   beforeAll(() => {

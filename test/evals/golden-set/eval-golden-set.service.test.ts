@@ -1,3 +1,5 @@
+import type { PinoLogger } from 'nestjs-pino';
+
 import { EvalGoldenSetService } from '../../../src/evals/golden-set/eval-golden-set.service';
 
 jest.mock('nestjs-pino', () => ({
@@ -9,7 +11,7 @@ describe('EvalGoldenSetService Unit Test', () => {
   let sut: EvalGoldenSetService;
 
   beforeAll(() => {
-    const logger: any = { debug: jest.fn() };
+    const logger = { debug: jest.fn() } as unknown as PinoLogger;
     sut = new EvalGoldenSetService(logger);
   });
 

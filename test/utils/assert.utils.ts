@@ -17,10 +17,7 @@ export class AssertUtils {
     expect((thrown as HttpException).getStatus()).toBe(expectedStatusCode);
   }
 
-  static async assertThrows(
-    action: () => Promise<unknown>,
-    expectedMessage?: string,
-  ): Promise<void> {
+  static async assertThrows(action: () => Promise<unknown>, expectedMessage?: string): Promise<void> {
     let thrown: unknown;
     try {
       await action();
@@ -33,10 +30,7 @@ export class AssertUtils {
     }
   }
 
-  static async assertDatabaseError(
-    action: () => Promise<unknown>,
-    expectedCode: string,
-  ): Promise<void> {
+  static async assertDatabaseError(action: () => Promise<unknown>, expectedCode: string): Promise<void> {
     let thrown: unknown;
     try {
       await action();

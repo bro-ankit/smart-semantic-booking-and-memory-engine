@@ -1,10 +1,11 @@
-import { HttpStatus } from '@nestjs/common';
 import { TestBed } from '@automock/jest';
-import { EvalJudgeService } from '../../../src/evals/judge/eval-judge.service';
+import { HttpStatus } from '@nestjs/common';
+
 import { AI_CLIENT } from '../../../src/ai/ai.constants';
 import type { IAiClient } from '../../../src/ai/ai.interface';
-import { AssertUtils } from '../../utils/assert.utils';
 import type { EvalJudgeInput } from '../../../src/evals/evals.types';
+import { EvalJudgeService } from '../../../src/evals/judge/eval-judge.service';
+import { AssertUtils } from '../../utils/assert.utils';
 
 const INPUT: EvalJudgeInput = {
   question: 'What are Kafka consumer groups?',

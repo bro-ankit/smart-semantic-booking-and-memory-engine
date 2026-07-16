@@ -1,12 +1,13 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ApiAcceptedResponse, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+
+import { IngestBookmarkCommand } from './commands/ingest-bookmark.command';
+import { BookmarkResponseDto } from './dto/bookmark-response.dto';
 import { IngestBookmarkDto } from './dto/ingest-bookmark.dto';
 import { ReviewBookmarkDto } from './dto/review-bookmark.dto';
-import { BookmarkResponseDto } from './dto/bookmark-response.dto';
-import { IngestBookmarkCommand } from './commands/ingest-bookmark.command';
-import { ReviewBookmarkCommand } from './review/review-bookmark.command';
 import { GetPendingReviewQuery } from './review/get-pending-review.query';
+import { ReviewBookmarkCommand } from './review/review-bookmark.command';
 
 @ApiTags('bookmarks')
 @Controller('bookmarks')
@@ -44,10 +45,7 @@ export class BookmarksController {
       'Optionally supply editedSummary/editedTags to override the AI output — the delta is logged as a correction record.',
   })
   @ApiOkResponse({ type: BookmarkResponseDto })
-  async reviewBookmark(
-    @Param('id') id: string,
-    @Body() dto: ReviewBookmarkDto,
-  ): Promise<BookmarkResponseDto> {
+  async reviewBookmark(@Param('id') id: string, @Body() dto: ReviewBookmarkDto): Promise<BookmarkResponseDto> {
     return this.commandBus.execute(new ReviewBookmarkCommand(id, dto));
   }
 }

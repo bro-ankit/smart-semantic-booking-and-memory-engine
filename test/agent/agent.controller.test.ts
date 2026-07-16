@@ -1,8 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
+import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
-import type { INestApplication } from '@nestjs/common';
+
 import { AgentController } from '../../src/agent/agent.controller';
 import { RunAgentCommand } from '../../src/agent/commands/run-agent.command';
 
@@ -12,7 +13,12 @@ const AGENT_RESPONSE = {
   answer: 'Kafka achieves parallelism by assigning one partition per consumer in a group.',
   truncated: false,
   toolCallTrace: [
-    { iteration: 1, toolName: 'searchBookmarks', args: { query: 'Kafka partitioning' }, result: { found: 1, bookmarks: [] } },
+    {
+      iteration: 1,
+      toolName: 'searchBookmarks',
+      args: { query: 'Kafka partitioning' },
+      result: { found: 1, bookmarks: [] },
+    },
   ],
 };
 
@@ -41,10 +47,7 @@ describe('AgentController Supertest', () => {
       test('Then it returns 201 with the agent response and dispatches RunAgentCommand', async () => {
         commandBus.execute.mockResolvedValue(AGENT_RESPONSE);
 
-        const res = await request(app.getHttpServer())
-          .post('/agent/run')
-          .send({ question: QUESTION })
-          .expect(201);
+        const res = await request(app.getHttpServer()).post('/agent/run').send({ question: QUESTION }).expect(201);
 
         expect(res.body).toEqual(AGENT_RESPONSE);
         expect(commandBus.execute).toHaveBeenCalledWith(new RunAgentCommand(QUESTION));

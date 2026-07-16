@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import {
   circuitBreaker,
   ExponentialBackoff,
@@ -10,6 +9,8 @@ import {
   SamplingBreaker,
   wrap,
 } from 'cockatiel';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import type { ResiliencePolicyOptions } from './resilience-policy.types';
 
 const DEFAULT_OPTIONS: Required<ResiliencePolicyOptions> = {

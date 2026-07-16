@@ -1,7 +1,8 @@
 import { TestBed } from '@automock/jest';
-import puppeteer from 'puppeteer';
 import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
+import puppeteer from 'puppeteer';
+
 import { ScraperService } from '../../src/scraper/scraper.service';
 
 const mockLaunch = (puppeteer as jest.Mocked<typeof puppeteer>).launch;
@@ -12,8 +13,10 @@ const SUBSTANTIAL_TEXT = 'Kafka partitioning distributes data across brokers. '.
 const URL = 'https://example.com/kafka-partitioning';
 
 function setupReadability(textContent: string) {
-  MockJSDOM.mockImplementation(() => ({ window: { document: {} } } as unknown as JSDOM));
-  MockReadability.mockImplementation(() => ({ parse: () => ({ textContent }) } as unknown as Readability<{ textContent: string }>));
+  MockJSDOM.mockImplementation(() => ({ window: { document: {} } }) as unknown as JSDOM);
+  MockReadability.mockImplementation(
+    () => ({ parse: () => ({ textContent }) }) as unknown as Readability<{ textContent: string }>,
+  );
 }
 
 function mockFetchResponse(status = 200): Response {
@@ -67,16 +70,18 @@ describe('ScraperService Unit Test', () => {
           }),
         );
       });
-
     });
 
     describe('And fetch returns thin content (JS-rendered stub)', () => {
       test('Then it falls back to Puppeteer', async () => {
         (global.fetch as jest.Mock).mockResolvedValue(mockFetchResponse());
-        MockJSDOM.mockImplementation(() => ({ window: { document: {} } } as unknown as JSDOM));
-        MockReadability
-          .mockImplementationOnce(() => ({ parse: () => ({ textContent: 'too short' }) } as unknown as Readability<{ textContent: string }>))
-          .mockImplementationOnce(() => ({ parse: () => ({ textContent: SUBSTANTIAL_TEXT }) } as unknown as Readability<{ textContent: string }>));
+        MockJSDOM.mockImplementation(() => ({ window: { document: {} } }) as unknown as JSDOM);
+        MockReadability.mockImplementationOnce(
+          () => ({ parse: () => ({ textContent: 'too short' }) }) as unknown as Readability<{ textContent: string }>,
+        ).mockImplementationOnce(
+          () =>
+            ({ parse: () => ({ textContent: SUBSTANTIAL_TEXT }) }) as unknown as Readability<{ textContent: string }>,
+        );
         setupPuppeteerBrowser();
 
         const result = await sut.scrape(URL);
@@ -84,5 +89,5 @@ describe('ScraperService Unit Test', () => {
         expect(result).toBe(SUBSTANTIAL_TEXT.trim());
       });
     });
-  })
+  });
 });

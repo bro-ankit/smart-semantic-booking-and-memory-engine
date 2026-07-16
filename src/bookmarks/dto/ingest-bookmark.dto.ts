@@ -3,10 +3,10 @@ import {
   IsNotEmpty,
   IsString,
   IsUrl,
-  ValidateIf,
   registerDecorator,
-  ValidationOptions,
+  ValidateIf,
   ValidationArguments,
+  ValidationOptions,
 } from 'class-validator';
 
 function IsXorDefined(sibling: string, options?: ValidationOptions) {

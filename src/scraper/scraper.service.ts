@@ -1,25 +1,18 @@
+import { Readability } from '@mozilla/readability';
 import { Injectable } from '@nestjs/common';
+import { JSDOM } from 'jsdom';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import puppeteer from 'puppeteer';
-import { Readability } from '@mozilla/readability';
-import { JSDOM } from 'jsdom';
 
 const MIN_CONTENT_LENGTH = 200;
 
-const PUPPETEER_ARGS = [
-  '--no-sandbox',
-  '--disable-setuid-sandbox',
-  '--disable-dev-shm-usage',
-  '--disable-gpu',
-];
+const PUPPETEER_ARGS = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
 
 const BOT_USER_AGENT = 'Mozilla/5.0 (compatible; BookmarkBot/1.0; +https://github.com/bro-ankit)';
 
 @Injectable()
 export class ScraperService {
-  constructor(
-    @InjectPinoLogger(ScraperService.name) private readonly logger: PinoLogger,
-  ) { }
+  constructor(@InjectPinoLogger(ScraperService.name) private readonly logger: PinoLogger) {}
 
   async scrape(url: string): Promise<string> {
     const lightweight = await this.scrapeWithFetch(url);

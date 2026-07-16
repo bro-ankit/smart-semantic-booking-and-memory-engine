@@ -1,10 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { sql, isNotNull, and, eq, arrayContains, inArray } from 'drizzle-orm';
+import { and, arrayContains, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { DRIZZLE_DB } from '../database/database.constants';
-import { DrizzleTransactionContext } from '../database/drizzle-transaction.context';
 import type { DrizzleDb } from '../database/database.module';
-import { bookmarksTable, type BookmarkInsert, type BookmarkSelect, type IngestionStatus } from '../schema/bookmarks.schema';
+import { DrizzleTransactionContext } from '../database/drizzle-transaction.context';
+import {
+  type BookmarkInsert,
+  type BookmarkSelect,
+  bookmarksTable,
+  type IngestionStatus,
+} from '../schema/bookmarks.schema';
 
 @Injectable()
 export class BookmarksRepository {
@@ -12,7 +18,7 @@ export class BookmarksRepository {
     @InjectPinoLogger(BookmarksRepository.name) private readonly logger: PinoLogger,
     @Inject(DRIZZLE_DB) private readonly db: DrizzleDb,
     private readonly txContext: DrizzleTransactionContext,
-  ) { }
+  ) {}
 
   async insert(data: BookmarkInsert): Promise<BookmarkSelect> {
     this.logger.debug('Inserting bookmark');
@@ -48,11 +54,7 @@ export class BookmarksRepository {
   async findById(id: string): Promise<BookmarkSelect | undefined> {
     this.logger.debug({ id }, 'Finding bookmark by id');
     const client = this.txContext.getClient(this.db);
-    const [result] = await client
-      .select()
-      .from(bookmarksTable)
-      .where(eq(bookmarksTable.id, id))
-      .limit(1);
+    const [result] = await client.select().from(bookmarksTable).where(eq(bookmarksTable.id, id)).limit(1);
     return result;
   }
 
@@ -84,17 +86,16 @@ export class BookmarksRepository {
     const rows = await client
       .select({ bookmark: bookmarksTable, distance: distanceExpr })
       .from(bookmarksTable)
-      .where(and(
-        isNotNull(bookmarksTable.embedding),
-        sql`${bookmarksTable.embedding} <=> ${vector}::vector <= ${maxDistance}`,
-      ))
+      .where(
+        and(
+          isNotNull(bookmarksTable.embedding),
+          sql`${bookmarksTable.embedding} <=> ${vector}::vector <= ${maxDistance}`,
+        ),
+      )
       .orderBy(distanceExpr)
       .limit(limit);
 
-    this.logger.info(
-      { scores: rows.map((r) => ({ id: r.bookmark.id, distance: r.distance })) },
-      'Similarity scores',
-    );
+    this.logger.info({ scores: rows.map((r) => ({ id: r.bookmark.id, distance: r.distance })) }, 'Similarity scores');
     return rows.map((r) => r.bookmark);
   }
 
@@ -126,11 +127,13 @@ export class BookmarksRepository {
     const rows = await client
       .select({ id: bookmarksTable.id })
       .from(bookmarksTable)
-      .where(and(
-        isNotNull(bookmarksTable.tsvContent),
-        eq(bookmarksTable.status, 'COMPLETED'),
-        sql`${bookmarksTable.tsvContent} @@ plainto_tsquery('english', ${query})`,
-      ))
+      .where(
+        and(
+          isNotNull(bookmarksTable.tsvContent),
+          eq(bookmarksTable.status, 'COMPLETED'),
+          sql`${bookmarksTable.tsvContent} @@ plainto_tsquery('english', ${query})`,
+        ),
+      )
       .orderBy(sql`ts_rank(${bookmarksTable.tsvContent}, plainto_tsquery('english', ${query})) DESC`)
       .limit(limit);
     return rows.map((r) => r.id);

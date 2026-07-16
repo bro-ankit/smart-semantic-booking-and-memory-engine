@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
+
 import { AiUsageContextService } from '../../src/metrics/ai-usage-context.service';
 import { AiUsageDiscoveryService } from '../../src/metrics/ai-usage-discovery.service';
 import { MetricsReporter } from '../../src/metrics/metrics.reporter';
@@ -14,7 +15,7 @@ class FakeAiClient {
   constructor(
     private readonly usageContext: AiUsageContextService,
     private readonly metricsReporter: MetricsReporter,
-  ) { }
+  ) {}
 
   async generateText(): Promise<string> {
     await Promise.resolve();
@@ -34,7 +35,7 @@ class FakeAiClient {
 
 @Injectable()
 class FakeRagService {
-  constructor(private readonly aiClient: FakeAiClient) { }
+  constructor(private readonly aiClient: FakeAiClient) {}
 
   @TrackAiUsage('RAG_ASK')
   async ask(): Promise<string> {

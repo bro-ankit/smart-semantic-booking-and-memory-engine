@@ -1,7 +1,8 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
-import { TRACK_AI_USAGE_KEY } from './track-ai-usage.decorator';
+
 import { AiUsageContextService, type AiUsageStore } from './ai-usage-context.service';
+import { TRACK_AI_USAGE_KEY } from './track-ai-usage.decorator';
 
 @Injectable()
 export class AiUsageDiscoveryService implements OnModuleInit {

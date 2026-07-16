@@ -3,13 +3,13 @@ export type AiSchemaType = 'string' | 'number' | 'boolean' | 'array' | 'object';
 export type AiSchemaProperty = {
   type: AiSchemaType;
   items?: AiSchemaProperty;
-}
+};
 
 export type AiResponseSchema = {
   type: 'object';
   properties: Record<string, AiSchemaProperty>;
   required: string[];
-}
+};
 
 export type AgentTool = {
   name: string;
@@ -24,8 +24,7 @@ export type AgentMessage =
   | { role: 'tool_result'; toolName: string; result: unknown };
 
 export type AgentTurnResult =
-  | { type: 'tool_call'; toolName: string; args: Record<string, unknown> }
-  | { type: 'final_answer'; text: string };
+  { type: 'tool_call'; toolName: string; args: Record<string, unknown> } | { type: 'final_answer'; text: string };
 
 export type TokenUsage = {
   promptTokens: number;

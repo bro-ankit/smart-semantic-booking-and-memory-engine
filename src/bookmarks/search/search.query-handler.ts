@@ -1,9 +1,10 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { plainToInstance } from 'class-transformer';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
+import { SearchResultDto } from '../dto/search-result.dto';
 import { SearchQuery } from './search.query';
 import { SearchService } from './search.service';
-import { SearchResultDto } from '../dto/search-result.dto';
 
 @QueryHandler(SearchQuery)
 export class SearchQueryHandler implements IQueryHandler<SearchQuery, SearchResultDto[]> {

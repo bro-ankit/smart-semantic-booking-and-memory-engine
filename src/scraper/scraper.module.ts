@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
+import { Module } from '@nestjs/common';
+
+import { IngestModule } from '../ingest/ingest.module';
+import { SCRAPING_QUEUE } from './scraper.constants';
 import { ScraperService } from './scraper.service';
 import { ScrapingProcessor } from './scraping.processor';
-import { SCRAPING_QUEUE } from './scraper.constants';
-import { IngestModule } from '../ingest/ingest.module';
 
 @Module({
   imports: [

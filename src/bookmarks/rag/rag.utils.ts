@@ -21,7 +21,7 @@ export class RagUtils {
       .join('\n\n');
 
     return [
-      'You are a helpful assistant. Answer the user\'s question using ONLY the following bookmarked content.',
+      "You are a helpful assistant. Answer the user's question using ONLY the following bookmarked content.",
       `If the answer cannot be found in the provided context, respond with: "${NO_CONTEXT_REPLY}"`,
       '',
       'Context:',

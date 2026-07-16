@@ -1,13 +1,14 @@
 import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { plainToInstance } from 'class-transformer';
-import { ReviewBookmarkCommand } from './review-bookmark.command';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
+import { IngestService } from '../../ingest/ingest.service';
+import type { BookmarkSelect } from '../../schema/bookmarks.schema';
 import { BookmarksRepository } from '../bookmarks.repository';
 import { CorrectionsRepository } from '../corrections.repository';
-import { IngestService } from '../../ingest/ingest.service';
 import { BookmarkResponseDto } from '../dto/bookmark-response.dto';
-import type { BookmarkSelect } from '../../schema/bookmarks.schema';
+import { ReviewBookmarkCommand } from './review-bookmark.command';
 
 @CommandHandler(ReviewBookmarkCommand)
 export class ReviewBookmarkCommandHandler implements ICommandHandler<ReviewBookmarkCommand, BookmarkResponseDto> {
@@ -16,7 +17,7 @@ export class ReviewBookmarkCommandHandler implements ICommandHandler<ReviewBookm
     private readonly bookmarksRepository: BookmarksRepository,
     private readonly correctionsRepository: CorrectionsRepository,
     private readonly ingestService: IngestService,
-  ) { }
+  ) {}
 
   async execute(command: ReviewBookmarkCommand): Promise<BookmarkResponseDto> {
     const { bookmarkId, dto } = command;

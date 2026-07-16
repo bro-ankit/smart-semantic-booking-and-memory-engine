@@ -17,11 +17,13 @@ The ingest endpoint originally accepted only `rawText`. Adding URL support intro
 URL ingestion is split into two phases:
 
 **Phase 1 — HTTP handler (synchronous, fast):**
+
 1. Insert a `PENDING` bookmark row with `originalUrl` set to the URL.
 2. Enqueue a `scrape-url` job to BullMQ.
 3. Return the `PENDING` bookmark immediately (HTTP 201).
 
 **Phase 2 — BullMQ worker (async, durable):**
+
 1. `ScrapingProcessor` picks up the job.
 2. Calls `ScraperService.scrape(url)` to get raw text.
 3. Hands the text to `IngestService.processRawText(bookmarkId, rawText)`.
@@ -29,12 +31,12 @@ URL ingestion is split into two phases:
 
 ### Why BullMQ + Redis, not a simple `setImmediate` or `Promise`?
 
-| Concern | `setImmediate` | BullMQ |
-|---------|---------------|--------|
-| App restart loses jobs | Yes | No — jobs persist in Redis |
-| Retry on transient failures | Manual | Built-in (3 attempts, exponential backoff at 3s) |
-| Visibility (queued/active/failed) | None | Bull Board / Redis CLI |
-| Concurrency control | Uncontrolled | Configurable worker concurrency |
+| Concern                           | `setImmediate` | BullMQ                                           |
+| --------------------------------- | -------------- | ------------------------------------------------ |
+| App restart loses jobs            | Yes            | No — jobs persist in Redis                       |
+| Retry on transient failures       | Manual         | Built-in (3 attempts, exponential backoff at 3s) |
+| Visibility (queued/active/failed) | None           | Bull Board / Redis CLI                           |
+| Concurrency control               | Uncontrolled   | Configurable worker concurrency                  |
 
 ### Queue configuration
 
@@ -47,7 +49,7 @@ BullModule.registerQueue({
     removeOnComplete: 100,
     removeOnFail: 200,
   },
-})
+});
 ```
 
 `removeOnComplete: 100` keeps the last 100 completed jobs visible for debugging without growing unboundedly. `removeOnFail: 200` retains failed jobs longer for diagnosis.

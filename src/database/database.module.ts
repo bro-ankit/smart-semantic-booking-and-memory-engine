@@ -1,14 +1,15 @@
-import { Module, Global, OnModuleInit, Inject } from '@nestjs/common';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { Global, Inject, Module, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Pool } from 'pg';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import * as path from 'path';
+import { Pool } from 'pg';
+
+import { ENV_VARIABLES } from '../constants/env.constants';
 import * as schema from '../schema';
 import { DRIZZLE_DB } from './database.constants';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { ENV_VARIABLES } from '../constants/env.constants';
 import { DrizzleTransactionContext } from './drizzle-transaction.context';
 import { DrizzleTransactionService } from './drizzle-transaction.service';
 

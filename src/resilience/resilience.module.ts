@@ -1,8 +1,9 @@
 import { Global, Module } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
-import { ResiliencePolicyRegistry } from './resilience-policy.registry';
+
 import { ResilienceService } from './resilience.service';
 import { ResilienceDiscoveryService } from './resilience-discovery.service';
+import { ResiliencePolicyRegistry } from './resilience-policy.registry';
 
 @Global()
 @Module({

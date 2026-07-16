@@ -6,6 +6,7 @@
 ## Context
 
 The ingestion pipeline must insert a bookmark and its todos atomically. The naive solution inlines the transaction inside `BookmarksRepository`, which breaks two rules:
+
 - A repository should only own its own table — `BookmarksRepository` should not reach into `todosTable`
 - Transaction management is an infrastructure concern, not a repository concern
 
@@ -20,6 +21,7 @@ src/database/
 ```
 
 Repositories never open transactions. They call:
+
 ```typescript
 const client = this.txContext.getClient(this.db);
 await client.insert(table).values(data).returning();
@@ -28,6 +30,7 @@ await client.insert(table).values(data).returning();
 `getClient()` returns the ambient transaction if one is active, or the raw `DrizzleDb` otherwise.
 
 The service layer opens the boundary:
+
 ```typescript
 return this.transactionService.execute(async () => {
   const bookmark = await this.bookmarksRepository.insert(...);

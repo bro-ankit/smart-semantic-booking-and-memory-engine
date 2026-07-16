@@ -11,7 +11,7 @@ The two retrievers' relevance scores are not on comparable scales — one is a d
 
 ## Decision
 
-Fuse the two retrievers' candidate lists using Reciprocal Rank Fusion: each candidate's fused score is derived only from *where it ranks* in each retriever's own list, not from the magnitude of either retriever's score. This is scale-free by construction, needs no normalization or tuned weight between the two retrievers, and degrades gracefully if one retriever returns nothing.
+Fuse the two retrievers' candidate lists using Reciprocal Rank Fusion: each candidate's fused score is derived only from _where it ranks_ in each retriever's own list, not from the magnitude of either retriever's score. This is scale-free by construction, needs no normalization or tuned weight between the two retrievers, and degrades gracefully if one retriever returns nothing.
 
 ## Consequences
 

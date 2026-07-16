@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, doublePrecision } from 'drizzle-orm/pg-core';
+import { doublePrecision, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const evalRunsTable = pgTable('eval_runs', {
   id: uuid('id').primaryKey().defaultRandom(),

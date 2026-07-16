@@ -1,10 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
+import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
-import type { INestApplication } from '@nestjs/common';
-import { EvalsController } from '../../src/evals/evals.controller';
+
 import { RunEvalsCommand } from '../../src/evals/commands/run-evals.command';
+import { EvalsController } from '../../src/evals/evals.controller';
 
 const CREATED_AT_ISO = '2026-05-29T00:00:00.000Z';
 const CREATED_AT = new Date(CREATED_AT_ISO);

@@ -1,8 +1,9 @@
 import { TestBed } from '@automock/jest';
+
+import type { AskQuestionDto } from '../../../src/bookmarks/dto/ask-question.dto';
+import type { AskResponseDto } from '../../../src/bookmarks/dto/ask-response.dto';
 import { RAGController } from '../../../src/bookmarks/rag/rag.controller';
 import { RAGService } from '../../../src/bookmarks/rag/rag.service';
-import type { AskResponseDto } from '../../../src/bookmarks/dto/ask-response.dto';
-import type { AskQuestionDto } from '../../../src/bookmarks/dto/ask-question.dto';
 
 describe('RAGController Unit Test', () => {
   let sut: RAGController;

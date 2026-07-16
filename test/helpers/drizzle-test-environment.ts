@@ -1,15 +1,16 @@
-import { type Provider, type ModuleMetadata } from '@nestjs/common';
+import { type ModuleMetadata, type Provider } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
-import { LoggerModule } from 'nestjs-pino';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import * as schema from '../../src/schema';
+import { LoggerModule } from 'nestjs-pino';
+import { Pool } from 'pg';
+
 import { DRIZZLE_DB } from '../../src/database/database.constants';
+import type { DrizzleDb } from '../../src/database/database.module';
 import { DrizzleTransactionContext } from '../../src/database/drizzle-transaction.context';
 import { DrizzleTransactionService } from '../../src/database/drizzle-transaction.service';
-import type { DrizzleDb } from '../../src/database/database.module';
+import * as schema from '../../src/schema';
 
 const PGVECTOR_IMAGE = 'pgvector/pgvector:pg16';
 const MIGRATIONS_FOLDER = './db/migrations';
@@ -22,9 +23,7 @@ export class DrizzleTestEnvironment {
   module!: TestingModule;
 
   async start(providers: Provider[], imports: NonNullable<ModuleMetadata['imports']> = []): Promise<void> {
-    this.container = await new PostgreSqlContainer(PGVECTOR_IMAGE)
-      .withReuse()
-      .start();
+    this.container = await new PostgreSqlContainer(PGVECTOR_IMAGE).withReuse().start();
 
     this.pool = new Pool({
       host: this.container.getHost(),

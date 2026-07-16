@@ -9,14 +9,14 @@ Two different things in this codebase are called "schema" — Drizzle table defi
 
 ## Decision
 
-| Pattern | Contains | Example |
-|---|---|---|
-| `src/schema/*.schema.ts` | Drizzle table definitions (`pgTable`) | `bookmarks.schema.ts` |
-| `*.zod.ts` | Zod schemas + inferred TypeScript types | `enrichment.zod.ts` |
-| `*.constants.ts` | `Symbol` tokens + `as const` error/config objects | `gemini.constants.ts` |
-| `*.module.ts` | NestJS `@Module` class | `ai.module.ts` |
-| `*.service.ts` | NestJS `@Injectable` service | `enrichment.service.ts` |
-| `*.client.ts` | External API adapter implementing an interface | `gemini.client.ts` |
+| Pattern                  | Contains                                          | Example                 |
+| ------------------------ | ------------------------------------------------- | ----------------------- |
+| `src/schema/*.schema.ts` | Drizzle table definitions (`pgTable`)             | `bookmarks.schema.ts`   |
+| `*.zod.ts`               | Zod schemas + inferred TypeScript types           | `enrichment.zod.ts`     |
+| `*.constants.ts`         | `Symbol` tokens + `as const` error/config objects | `gemini.constants.ts`   |
+| `*.module.ts`            | NestJS `@Module` class                            | `ai.module.ts`          |
+| `*.service.ts`           | NestJS `@Injectable` service                      | `enrichment.service.ts` |
+| `*.client.ts`            | External API adapter implementing an interface    | `gemini.client.ts`      |
 
 ## Drizzle table variable naming
 

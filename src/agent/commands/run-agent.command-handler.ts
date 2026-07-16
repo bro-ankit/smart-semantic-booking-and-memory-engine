@@ -1,16 +1,17 @@
-import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { plainToInstance } from 'class-transformer';
-import { RunAgentCommand } from './run-agent.command';
-import { AgentToolExecutorService } from '../tools/agent-tool-executor.service';
-import { RunAgentResponseDto } from '../dto/run-agent-response.dto';
-import { AGENT_MAX_ITERATIONS } from '../agent.constants';
-import { AGENT_TOOLS } from '../tools/agent-tools.definitions';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { AI_CLIENT } from '../../ai/ai.constants';
-import type { IAiClient, AgentMessage } from '../../ai/ai.interface';
-import type { ToolCallTrace } from '../agent.types';
+import type { AgentMessage, IAiClient } from '../../ai/ai.interface';
 import { TrackAiUsage } from '../../metrics/track-ai-usage.decorator';
+import { AGENT_MAX_ITERATIONS } from '../agent.constants';
+import type { ToolCallTrace } from '../agent.types';
+import { RunAgentResponseDto } from '../dto/run-agent-response.dto';
+import { AgentToolExecutorService } from '../tools/agent-tool-executor.service';
+import { AGENT_TOOLS } from '../tools/agent-tools.definitions';
+import { RunAgentCommand } from './run-agent.command';
 
 const DTO_OPTIONS = { excludeExtraneousValues: true } as const;
 
@@ -25,16 +26,14 @@ export class RunAgentCommandHandler implements ICommandHandler<RunAgentCommand, 
     @InjectPinoLogger(RunAgentCommandHandler.name) private readonly logger: PinoLogger,
     @Inject(AI_CLIENT) private readonly aiClient: IAiClient,
     private readonly toolExecutor: AgentToolExecutorService,
-  ) { }
+  ) {}
 
   @TrackAiUsage('AGENT_TURN')
   async execute(command: RunAgentCommand): Promise<RunAgentResponseDto> {
     const { question } = command;
     this.logger.info({ question }, 'Starting agent run');
 
-    const history: AgentMessage[] = [
-      { role: 'user', text: `${SYSTEM_PROMPT}\n\nUser question: ${question}` },
-    ];
+    const history: AgentMessage[] = [{ role: 'user', text: `${SYSTEM_PROMPT}\n\nUser question: ${question}` }];
     const trace: ToolCallTrace[] = [];
 
     for (let iteration = 1; iteration <= AGENT_MAX_ITERATIONS; iteration++) {
@@ -44,7 +43,11 @@ export class RunAgentCommandHandler implements ICommandHandler<RunAgentCommand, 
 
       if (turn.type === 'final_answer') {
         this.logger.info({ iterations: iteration, traceLength: trace.length }, 'Agent reached final answer');
-        return plainToInstance(RunAgentResponseDto, { answer: turn.text, truncated: false, toolCallTrace: trace }, DTO_OPTIONS);
+        return plainToInstance(
+          RunAgentResponseDto,
+          { answer: turn.text, truncated: false, toolCallTrace: trace },
+          DTO_OPTIONS,
+        );
       }
 
       const { toolName, args } = turn;
@@ -65,10 +68,15 @@ export class RunAgentCommandHandler implements ICommandHandler<RunAgentCommand, 
     }
 
     this.logger.warn({ maxIterations: AGENT_MAX_ITERATIONS }, 'Agent hit max iterations — returning partial result');
-    const partialAnswer = trace.length > 0
-      ? `I was not able to complete the full reasoning within the iteration limit. Here is what I found so far: ${JSON.stringify(trace[trace.length - 1]?.result)}`
-      : 'The agent could not produce an answer within the allowed number of steps.';
+    const partialAnswer =
+      trace.length > 0
+        ? `I was not able to complete the full reasoning within the iteration limit. Here is what I found so far: ${JSON.stringify(trace[trace.length - 1]?.result)}`
+        : 'The agent could not produce an answer within the allowed number of steps.';
 
-    return plainToInstance(RunAgentResponseDto, { answer: partialAnswer, truncated: true, toolCallTrace: trace }, DTO_OPTIONS);
+    return plainToInstance(
+      RunAgentResponseDto,
+      { answer: partialAnswer, truncated: true, toolCallTrace: trace },
+      DTO_OPTIONS,
+    );
   }
 }

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { LoggerModule } from 'nestjs-pino';
 import { BrokenCircuitError } from 'cockatiel';
+import { LoggerModule } from 'nestjs-pino';
+
 import { ResiliencePolicyRegistry } from '../../src/resilience/resilience-policy.registry';
 
 describe('ResiliencePolicyRegistry Unit Test', () => {
@@ -53,7 +54,8 @@ describe('ResiliencePolicyRegistry Unit Test', () => {
     describe('When the operation fails then recovers', () => {
       test('Then it retries until success', async () => {
         const policy = sut.getOrCreate('retry.op', { maxAttempts: 3, initialDelay: 0 });
-        const op = jest.fn()
+        const op = jest
+          .fn()
           .mockRejectedValueOnce(new Error('first'))
           .mockRejectedValueOnce(new Error('second'))
           .mockResolvedValueOnce('third');

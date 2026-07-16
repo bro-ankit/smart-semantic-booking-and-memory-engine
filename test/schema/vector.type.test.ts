@@ -1,12 +1,10 @@
 import {
-  parseVectorString,
-  toVectorDriverString,
   buildVectorConfig,
   GEMINI_EMBEDDING_DIMENSIONS,
   OPENAI_EMBEDDING_DIMENSIONS,
+  parseVectorString,
+  toVectorDriverString,
 } from '../../src/schema/vector.type';
-
-
 
 describe('Given parseVectorString, When called', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -67,8 +65,6 @@ describe('Given parseVectorString, When called', () => {
   });
 });
 
-
-
 describe('Given toVectorDriverString, When called', () => {
   beforeEach(() => jest.clearAllMocks());
 
@@ -99,8 +95,6 @@ describe('Given toVectorDriverString, When called', () => {
     });
   });
 });
-
-
 
 describe('Given buildVectorConfig, When called with a dimension count', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -137,8 +131,6 @@ describe('Given buildVectorConfig, When called with a dimension count', () => {
     });
   });
 });
-
-
 
 describe('Given embedding dimension constants, When imported', () => {
   describe.each([

@@ -11,7 +11,7 @@ The naive implementation is:
 
 ```typescript
 // NAIVE — do not use
-fromDriver: (value: string) => value.slice(1, -1).split(',').map(Number)
+fromDriver: (value: string) => value.slice(1, -1).split(',').map(Number);
 ```
 
 ### The Problem
@@ -35,7 +35,7 @@ function parseVectorString(raw: string): number[] {
   const parts = inner.split(',');
   const result = new Array<number>(parts.length); // pre-allocated, no resizing
   for (let i = 0; i < parts.length; i++) {
-    result[i] = +(parts[i]!);                     // unary + is faster than Number()
+    result[i] = +parts[i]!; // unary + is faster than Number()
   }
   return result;
 }
@@ -43,6 +43,7 @@ function parseVectorString(raw: string): number[] {
 
 **Why not a hand-rolled char-code loop?**  
 A fully zero-allocation parser would walk `charCodeAt(i)` and build floats digit-by-digit, eliminating even the `split()` allocation. This was considered but rejected because:
+
 - pgvector emits scientific notation (e.g. `1.23e-7`) for near-zero values. Correctly parsing `e`/`E` exponents adds significant complexity and a new class of correctness bugs.
 - The unary `+` operator handles all IEEE 754 formats correctly.
 - The remaining `.split()` allocation is a single array, not a doubled one. The GC pressure is halved compared to the naive approach.

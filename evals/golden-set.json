@@ -1,12 +1,24 @@
 [
   {
     "question": "What is the difference between Gemini native function calling and prompt-engineering tool routing?",
-    "expectedTopics": ["model decides which tool", "structured functionCall response", "reliability", "no regex parsing", "tool definitions"],
+    "expectedTopics": [
+      "model decides which tool",
+      "structured functionCall response",
+      "reliability",
+      "no regex parsing",
+      "tool definitions"
+    ],
     "expectedSourceTag": "agent"
   },
   {
     "question": "Why does a RAG agent need a control loop with a max iteration limit?",
-    "expectedTopics": ["infinite loop prevention", "tool chaining", "partial result", "truncated flag", "resource bound"],
+    "expectedTopics": [
+      "infinite loop prevention",
+      "tool chaining",
+      "partial result",
+      "truncated flag",
+      "resource bound"
+    ],
     "expectedSourceTag": "agent"
   },
   {
@@ -16,17 +28,35 @@
   },
   {
     "question": "What does AsyncLocalStorage solve when propagating database transactions across async boundaries?",
-    "expectedTopics": ["implicit propagation", "async context", "transaction scope", "no prop drilling", "request-scoped"],
+    "expectedTopics": [
+      "implicit propagation",
+      "async context",
+      "transaction scope",
+      "no prop drilling",
+      "request-scoped"
+    ],
     "expectedSourceTag": "nestjs"
   },
   {
     "question": "Why store both the AI-generated summary and the human-edited version separately?",
-    "expectedTopics": ["training signal", "fine-tuning dataset", "correction delta", "audit trail", "human-in-the-loop"],
+    "expectedTopics": [
+      "training signal",
+      "fine-tuning dataset",
+      "correction delta",
+      "audit trail",
+      "human-in-the-loop"
+    ],
     "expectedSourceTag": "human-review"
   },
   {
     "question": "What is the role of text embeddings in a semantic search system?",
-    "expectedTopics": ["high-dimensional vector", "semantic meaning", "cosine distance", "encoder model", "nearest neighbour"],
+    "expectedTopics": [
+      "high-dimensional vector",
+      "semantic meaning",
+      "cosine distance",
+      "encoder model",
+      "nearest neighbour"
+    ],
     "expectedSourceTag": "embeddings"
   },
   {
@@ -46,7 +76,12 @@
   },
   {
     "question": "How does pgvector's HNSW index work and why is it faster than brute-force search?",
-    "expectedTopics": ["hierarchical navigable small world", "approximate nearest neighbour", "graph traversal", "index build time"],
+    "expectedTopics": [
+      "hierarchical navigable small world",
+      "approximate nearest neighbour",
+      "graph traversal",
+      "index build time"
+    ],
     "expectedSourceTag": "pgvector"
   },
   {
@@ -61,7 +96,12 @@
   },
   {
     "question": "What is the difference between relevance and faithfulness in RAG evaluation?",
-    "expectedTopics": ["relevance measures question coverage", "faithfulness measures hallucination", "orthogonal metrics", "LLM judge"],
+    "expectedTopics": [
+      "relevance measures question coverage",
+      "faithfulness measures hallucination",
+      "orthogonal metrics",
+      "LLM judge"
+    ],
     "expectedSourceTag": "rag"
   },
   {
@@ -81,7 +121,13 @@
   },
   {
     "question": "How does NestJS CQRS CommandBus decouple the HTTP controller from business logic?",
-    "expectedTopics": ["command handler", "dispatcher", "separation of concerns", "single responsibility", "testability"],
+    "expectedTopics": [
+      "command handler",
+      "dispatcher",
+      "separation of concerns",
+      "single responsibility",
+      "testability"
+    ],
     "expectedSourceTag": "nestjs"
   }
 ]

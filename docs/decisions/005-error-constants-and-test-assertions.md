@@ -45,7 +45,7 @@ await AssertUtils.assertError(() => ..., 'AI response failed schema validation',
 Located at `test/utils/assert.utils.ts`. Captures the thrown value once, asserts instance type and HTTP status in a single call:
 
 ```typescript
-AssertUtils.assertError(action, expectedMessage, expectedStatusCode)
+AssertUtils.assertError(action, expectedMessage, expectedStatusCode);
 ```
 
 Uses `HttpException` as the base check — works for any NestJS HTTP exception (`InternalServerErrorException`, `NotFoundException`, etc.).

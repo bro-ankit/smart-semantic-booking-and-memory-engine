@@ -1,13 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { plainToInstance } from 'class-transformer';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { AI_CLIENT } from '../../ai/ai.constants';
 import type { IAiClient } from '../../ai/ai.interface';
+import { AiUsageContextService } from '../../metrics/ai-usage-context.service';
+import { TrackAiUsage } from '../../metrics/track-ai-usage.decorator';
+import { AskResponseDto } from '../dto/ask-response.dto';
 import { SearchService } from '../search/search.service';
 import { RagUtils } from './rag.utils';
-import { AskResponseDto } from '../dto/ask-response.dto';
-import { TrackAiUsage } from '../../metrics/track-ai-usage.decorator';
-import { AiUsageContextService } from '../../metrics/ai-usage-context.service';
 
 type RagExecuteResult = {
   answer: string;
@@ -21,7 +22,7 @@ export class RAGService {
     @Inject(AI_CLIENT) private readonly aiClient: IAiClient,
     private readonly searchService: SearchService,
     private readonly usageContext: AiUsageContextService,
-  ) { }
+  ) {}
 
   async ask(question: string): Promise<AskResponseDto> {
     this.logger.info({ question }, 'RAG ask request');

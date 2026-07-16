@@ -1,11 +1,12 @@
 import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { AI_CLIENT } from '../../ai/ai.constants';
-import type { IAiClient, AiResponseSchema } from '../../ai/ai.interface';
-import { BookmarkEnrichmentSchema, type BookmarkEnrichment } from './enrichment.zod';
-import { ENRICHMENT_ERRORS } from './enrichment.constants';
-import { Resilient } from '../../resilience';
+import type { AiResponseSchema, IAiClient } from '../../ai/ai.interface';
 import { TrackAiUsage } from '../../metrics/track-ai-usage.decorator';
+import { Resilient } from '../../resilience';
+import { ENRICHMENT_ERRORS } from './enrichment.constants';
+import { type BookmarkEnrichment, BookmarkEnrichmentSchema } from './enrichment.zod';
 
 const ENRICHMENT_RESPONSE_SCHEMA: AiResponseSchema = {
   type: 'object',
@@ -36,7 +37,7 @@ export class EnrichmentService {
   constructor(
     @InjectPinoLogger(EnrichmentService.name) private readonly logger: PinoLogger,
     @Inject(AI_CLIENT) private readonly aiClient: IAiClient,
-  ) { }
+  ) {}
 
   @Resilient()
   @TrackAiUsage('ENRICHMENT')

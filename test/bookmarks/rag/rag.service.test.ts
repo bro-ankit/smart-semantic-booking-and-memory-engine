@@ -1,12 +1,13 @@
-import { HttpStatus, InternalServerErrorException } from '@nestjs/common';
 import { TestBed } from '@automock/jest';
-import { RAGService } from '../../../src/bookmarks/rag/rag.service';
-import { SearchService } from '../../../src/bookmarks/search/search.service';
+import { HttpStatus, InternalServerErrorException } from '@nestjs/common';
+
 import { AI_CLIENT } from '../../../src/ai/ai.constants';
 import type { IAiClient } from '../../../src/ai/ai.interface';
-import { AssertUtils } from '../../utils/assert.utils';
-import { mockBookmarkSelect } from '../../__mocks__/bookmark.mock';
+import { RAGService } from '../../../src/bookmarks/rag/rag.service';
+import { SearchService } from '../../../src/bookmarks/search/search.service';
 import { AiUsageContextService } from '../../../src/metrics/ai-usage-context.service';
+import { mockBookmarkSelect } from '../../__mocks__/bookmark.mock';
+import { AssertUtils } from '../../utils/assert.utils';
 
 describe('RAGService Unit Test', () => {
   let sut: RAGService;
@@ -119,9 +120,7 @@ describe('RAGService Unit Test', () => {
     describe('And the LLM call fails', () => {
       test('Then it propagates the exception', async () => {
         searchService.search.mockResolvedValue(CONTEXT_RESULTS);
-        aiClient.generateText.mockRejectedValueOnce(
-          new InternalServerErrorException('Gemini API call failed'),
-        );
+        aiClient.generateText.mockRejectedValueOnce(new InternalServerErrorException('Gemini API call failed'));
 
         await AssertUtils.assertError(
           () => sut.ask(QUESTION),
@@ -133,9 +132,7 @@ describe('RAGService Unit Test', () => {
 
     describe('And the search call fails', () => {
       test('Then it propagates the exception before reaching the LLM', async () => {
-        searchService.search.mockRejectedValueOnce(
-          new InternalServerErrorException('Embedding generation failed'),
-        );
+        searchService.search.mockRejectedValueOnce(new InternalServerErrorException('Embedding generation failed'));
 
         await AssertUtils.assertError(
           () => sut.ask(QUESTION),

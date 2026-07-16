@@ -1,7 +1,8 @@
 import { TestBed } from '@automock/jest';
-import { GetPendingReviewQueryHandler } from '../../../src/bookmarks/review/get-pending-review.query-handler';
-import { GetPendingReviewQuery } from '../../../src/bookmarks/review/get-pending-review.query';
+
 import { BookmarksRepository } from '../../../src/bookmarks/bookmarks.repository';
+import { GetPendingReviewQuery } from '../../../src/bookmarks/review/get-pending-review.query';
+import { GetPendingReviewQueryHandler } from '../../../src/bookmarks/review/get-pending-review.query-handler';
 import { mockBookmarkSelect } from '../../__mocks__/bookmark.mock';
 
 const CREATED_AT = new Date('2026-05-29T00:00:00Z');
@@ -32,8 +33,30 @@ describe('GetPendingReviewQueryHandler Unit Test', () => {
 
       expect(bookmarksRepository.findByStatus).toHaveBeenCalledWith('REVIEW_PENDING');
       expect(result).toEqual([
-        { id: 'uuid-1', originalUrl: ORIGINAL_URL, contentSummary: '', tags: [], status: 'REVIEW_PENDING', errorMessage: null, aiContentSummary: '', aiTags: [], aiActionItems: [], createdAt: CREATED_AT },
-        { id: 'uuid-2', originalUrl: ORIGINAL_URL, contentSummary: '', tags: [], status: 'REVIEW_PENDING', errorMessage: null, aiContentSummary: '', aiTags: [], aiActionItems: [], createdAt: CREATED_AT },
+        {
+          id: 'uuid-1',
+          originalUrl: ORIGINAL_URL,
+          contentSummary: '',
+          tags: [],
+          status: 'REVIEW_PENDING',
+          errorMessage: null,
+          aiContentSummary: '',
+          aiTags: [],
+          aiActionItems: [],
+          createdAt: CREATED_AT,
+        },
+        {
+          id: 'uuid-2',
+          originalUrl: ORIGINAL_URL,
+          contentSummary: '',
+          tags: [],
+          status: 'REVIEW_PENDING',
+          errorMessage: null,
+          aiContentSummary: '',
+          aiTags: [],
+          aiActionItems: [],
+          createdAt: CREATED_AT,
+        },
       ]);
     });
   });

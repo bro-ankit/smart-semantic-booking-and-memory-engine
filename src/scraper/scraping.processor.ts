@@ -1,9 +1,10 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
+import { IngestService } from '../ingest/ingest.service';
 import { SCRAPING_QUEUE, type ScrapingJobData } from './scraper.constants';
 import { ScraperService } from './scraper.service';
-import { IngestService } from '../ingest/ingest.service';
 
 @Processor(SCRAPING_QUEUE)
 export class ScrapingProcessor extends WorkerHost {

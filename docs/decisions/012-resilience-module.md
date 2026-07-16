@@ -34,15 +34,15 @@ const result = await resilienceService.execute(() => this.enrich(text), 'enrich'
 
 ### Policy defaults
 
-| Option | Value | Rationale |
-|---|---|---|
-| `maxAttempts` | 3 | Two retries before propagating the error |
-| `initialDelay` | 100ms | Low enough to not noticeably stall a request |
-| `maxDelay` | 2000ms | Caps backoff; avoids long hangs under sustained failure |
-| `generator` | `fullJitterGenerator` | Spreads retry storms across concurrent requests |
-| `threshold` | 0.5 | Circuit opens when >50% of sampled requests fail |
-| `minimumRps` | 5 | Prevents tripping on low-traffic noise |
-| `halfOpenAfter` | 10s | Recovery probe window |
+| Option          | Value                 | Rationale                                               |
+| --------------- | --------------------- | ------------------------------------------------------- |
+| `maxAttempts`   | 3                     | Two retries before propagating the error                |
+| `initialDelay`  | 100ms                 | Low enough to not noticeably stall a request            |
+| `maxDelay`      | 2000ms                | Caps backoff; avoids long hangs under sustained failure |
+| `generator`     | `fullJitterGenerator` | Spreads retry storms across concurrent requests         |
+| `threshold`     | 0.5                   | Circuit opens when >50% of sampled requests fail        |
+| `minimumRps`    | 5                     | Prevents tripping on low-traffic noise                  |
+| `halfOpenAfter` | 10s                   | Recovery probe window                                   |
 
 ### ResilienceModule is global
 

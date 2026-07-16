@@ -1,11 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { AI_CLIENT } from '../../ai/ai.constants';
 import type { IAiClient } from '../../ai/ai.interface';
-import { BookmarksRepository } from '../bookmarks.repository';
 import type { BookmarkSelect } from '../../schema/bookmarks.schema';
-import { SEARCH_DEFAULTS } from './search.constants';
+import { BookmarksRepository } from '../bookmarks.repository';
 import { RrfUtil } from './rrf.util';
+import { SEARCH_DEFAULTS } from './search.constants';
 
 @Injectable()
 export class SearchService {
@@ -13,7 +14,7 @@ export class SearchService {
     @InjectPinoLogger(SearchService.name) private readonly logger: PinoLogger,
     @Inject(AI_CLIENT) private readonly aiClient: IAiClient,
     private readonly bookmarksRepository: BookmarksRepository,
-  ) { }
+  ) {}
 
   async search(query: string): Promise<BookmarkSelect[]> {
     this.logger.info({ query }, 'Hybrid search request');

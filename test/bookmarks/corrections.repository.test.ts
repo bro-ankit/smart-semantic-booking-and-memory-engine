@@ -1,5 +1,5 @@
-import { CorrectionsRepository } from '../../src/bookmarks/corrections.repository';
 import { BookmarksRepository } from '../../src/bookmarks/bookmarks.repository';
+import { CorrectionsRepository } from '../../src/bookmarks/corrections.repository';
 import { bookmarksTable } from '../../src/schema/bookmarks.schema';
 import { correctionsTable } from '../../src/schema/corrections.schema';
 import { DrizzleTestEnvironment } from '../helpers/drizzle-test-environment';

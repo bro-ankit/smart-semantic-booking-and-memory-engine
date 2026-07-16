@@ -1,5 +1,6 @@
 import { Reflector } from '@nestjs/core';
-import { TrackAiUsage, TRACK_AI_USAGE_KEY } from '../../src/metrics/track-ai-usage.decorator';
+
+import { TRACK_AI_USAGE_KEY, TrackAiUsage } from '../../src/metrics/track-ai-usage.decorator';
 
 class Dummy {
   @TrackAiUsage('RAG_ASK')

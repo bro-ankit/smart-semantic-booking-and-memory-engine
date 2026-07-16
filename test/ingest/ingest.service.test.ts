@@ -1,13 +1,14 @@
-import { InternalServerErrorException } from '@nestjs/common';
 import { TestBed } from '@automock/jest';
-import { IngestService } from '../../src/ingest/ingest.service';
-import { EnrichmentService } from '../../src/bookmarks/enrichment/enrichment.service';
-import { BookmarksRepository } from '../../src/bookmarks/bookmarks.repository';
-import { TodosRepository } from '../../src/bookmarks/todos.repository';
-import { DrizzleTransactionService } from '../../src/database/drizzle-transaction.service';
+import { InternalServerErrorException } from '@nestjs/common';
+
 import { AI_CLIENT } from '../../src/ai/ai.constants';
 import type { IAiClient } from '../../src/ai/ai.interface';
+import { BookmarksRepository } from '../../src/bookmarks/bookmarks.repository';
+import { EnrichmentService } from '../../src/bookmarks/enrichment/enrichment.service';
 import type { BookmarkEnrichment } from '../../src/bookmarks/enrichment/enrichment.zod';
+import { TodosRepository } from '../../src/bookmarks/todos.repository';
+import { DrizzleTransactionService } from '../../src/database/drizzle-transaction.service';
+import { IngestService } from '../../src/ingest/ingest.service';
 import { mockBookmarkSelect } from '../__mocks__/bookmark.mock';
 
 describe('IngestService Unit Test', () => {
@@ -101,7 +102,10 @@ describe('IngestService Unit Test', () => {
       expect(aiClient.generateEmbedding).toHaveBeenCalledWith(`${SUMMARY} ${TAGS.join(' ')}`);
       expect(transactionService.execute).toHaveBeenCalledTimes(1);
       expect(bookmarksRepository.updateEnrichment).toHaveBeenCalledWith(BOOKMARK_ID, {
-        contentSummary: SUMMARY, tags: TAGS, embedding: EMBEDDING, status: 'COMPLETED',
+        contentSummary: SUMMARY,
+        tags: TAGS,
+        embedding: EMBEDDING,
+        status: 'COMPLETED',
       });
       expect(todosRepository.insertMany).toHaveBeenCalledWith([
         { bookmarkId: BOOKMARK_ID, task: 'Read Kafka docs' },

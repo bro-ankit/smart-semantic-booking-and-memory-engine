@@ -1,13 +1,30 @@
+import {
+  type Content,
+  EmbedContentRequest,
+  FunctionDeclarationSchema,
+  GoogleGenerativeAI,
+  type Part,
+  type Schema,
+  SchemaType,
+} from '@google/generative-ai';
 import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { GoogleGenerativeAI, SchemaType, type Schema, type Content, type Part, FunctionDeclarationSchema, EmbedContentRequest } from '@google/generative-ai';
-import { GEMINI_CLIENT, GEMINI_ERRORS, GEMINI_COST_DEFAULTS, GEMINI_MODEL_DEFAULTS } from './gemini.constants';
+
 import { ENV_VARIABLES } from '../../constants/env.constants';
-import type { IAiClient, AiResponseSchema, AiSchemaProperty, AgentMessage, AgentTool, AgentTurnResult, TokenUsage } from '../ai.interface';
-import { Resilient } from '../../resilience';
-import { MetricsReporter } from '../../metrics/metrics.reporter';
 import { AiUsageContextService } from '../../metrics/ai-usage-context.service';
+import { MetricsReporter } from '../../metrics/metrics.reporter';
+import { Resilient } from '../../resilience';
+import type {
+  AgentMessage,
+  AgentTool,
+  AgentTurnResult,
+  AiResponseSchema,
+  AiSchemaProperty,
+  IAiClient,
+  TokenUsage,
+} from '../ai.interface';
+import { GEMINI_CLIENT, GEMINI_COST_DEFAULTS, GEMINI_ERRORS, GEMINI_MODEL_DEFAULTS } from './gemini.constants';
 
 @Injectable()
 export class GeminiClient implements IAiClient {
@@ -23,8 +40,14 @@ export class GeminiClient implements IAiClient {
     private readonly metricsReporter: MetricsReporter,
     private readonly usageContext: AiUsageContextService,
   ) {
-    this.costInputPerMillion = config.get<number>(ENV_VARIABLES.GEMINI.COST_INPUT_PER_MILLION, GEMINI_COST_DEFAULTS.INPUT);
-    this.costOutputPerMillion = config.get<number>(ENV_VARIABLES.GEMINI.COST_OUTPUT_PER_MILLION, GEMINI_COST_DEFAULTS.OUTPUT);
+    this.costInputPerMillion = config.get<number>(
+      ENV_VARIABLES.GEMINI.COST_INPUT_PER_MILLION,
+      GEMINI_COST_DEFAULTS.INPUT,
+    );
+    this.costOutputPerMillion = config.get<number>(
+      ENV_VARIABLES.GEMINI.COST_OUTPUT_PER_MILLION,
+      GEMINI_COST_DEFAULTS.OUTPUT,
+    );
     this.generationModel = config.get<string>(ENV_VARIABLES.GEMINI.GENERATION_MODEL, GEMINI_MODEL_DEFAULTS.GENERATION);
     this.embeddingModel = config.get<string>(ENV_VARIABLES.GEMINI.EMBEDDING_MODEL, GEMINI_MODEL_DEFAULTS.EMBEDDING);
   }
@@ -85,7 +108,15 @@ export class GeminiClient implements IAiClient {
 
     const model = this.client.getGenerativeModel({
       model: this.generationModel,
-      tools: [{ functionDeclarations: tools.map((t) => ({ name: t.name, description: t.description, parameters: this.toGeminiSchema(t.parameters) as FunctionDeclarationSchema })) }],
+      tools: [
+        {
+          functionDeclarations: tools.map((t) => ({
+            name: t.name,
+            description: t.description,
+            parameters: this.toGeminiSchema(t.parameters) as FunctionDeclarationSchema,
+          })),
+        },
+      ],
     });
 
     const conversationHistory = this.toGeminiHistory(history.slice(0, -1));
@@ -146,7 +177,10 @@ export class GeminiClient implements IAiClient {
     this.logger.info({ model: this.embeddingModel }, 'Generating embedding');
     try {
       const model = this.client.getGenerativeModel({ model: this.embeddingModel });
-      const result = await model.embedContent({ content: { role: 'user', parts: [{ text }] }, outputDimensionality: 768 } as EmbedContentRequest);
+      const result = await model.embedContent({
+        content: { role: 'user', parts: [{ text }] },
+        outputDimensionality: 768,
+      } as EmbedContentRequest);
       return result.embedding.values;
     } catch (err) {
       this.logger.error({ err }, GEMINI_ERRORS.API_CALL_FAILED);
@@ -154,7 +188,9 @@ export class GeminiClient implements IAiClient {
     }
   }
 
-  private extractUsage(meta: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } | undefined): TokenUsage {
+  private extractUsage(
+    meta: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } | undefined,
+  ): TokenUsage {
     if (!meta) return this.zeroUsage();
     return {
       promptTokens: meta.promptTokenCount ?? 0,
@@ -177,9 +213,7 @@ export class GeminiClient implements IAiClient {
         const obj = prop as AiResponseSchema;
         return {
           type: SchemaType.OBJECT,
-          properties: Object.fromEntries(
-            Object.entries(obj.properties).map(([k, v]) => [k, this.toGeminiSchema(v)]),
-          ),
+          properties: Object.fromEntries(Object.entries(obj.properties).map(([k, v]) => [k, this.toGeminiSchema(v)])),
           required: obj.required,
         } satisfies Schema;
       }
@@ -211,7 +245,9 @@ export class GeminiClient implements IAiClient {
     if (message.role === 'tool_result') {
       return [{ functionResponse: { name: message.toolName, response: { result: message.result } } } satisfies Part];
     }
-    throw new InternalServerErrorException(`generateWithTools called with unexpected last message role: ${message.role}`);
+    throw new InternalServerErrorException(
+      `generateWithTools called with unexpected last message role: ${message.role}`,
+    );
   }
 
   private parseJson(rawJson: string): unknown {
@@ -229,9 +265,7 @@ export class GeminiClient implements IAiClient {
 
   private computeCostUsd(usage: TokenUsage): number {
     return (
-      (usage.promptTokens * this.costInputPerMillion +
-        usage.completionTokens * this.costOutputPerMillion) /
-      1_000_000
+      (usage.promptTokens * this.costInputPerMillion + usage.completionTokens * this.costOutputPerMillion) / 1_000_000
     );
   }
 
@@ -239,7 +273,7 @@ export class GeminiClient implements IAiClient {
     const operation = this.usageContext.getOperation();
     if (!operation) return;
 
-    this.metricsReporter.record({
+    void this.metricsReporter.record({
       operation,
       model: this.generationModel,
       usage,
@@ -247,6 +281,4 @@ export class GeminiClient implements IAiClient {
       durationMs,
     });
   }
-
-
 }

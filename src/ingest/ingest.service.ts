@@ -1,13 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { AI_CLIENT } from '../ai/ai.constants';
 import type { IAiClient } from '../ai/ai.interface';
-import { DrizzleTransactionService } from '../database/drizzle-transaction.service';
-import { EnrichmentService } from '../bookmarks/enrichment/enrichment.service';
 import { BookmarksRepository } from '../bookmarks/bookmarks.repository';
-import { TodosRepository } from '../bookmarks/todos.repository';
-import type { BookmarkSelect } from '../schema/bookmarks.schema';
 import type { IngestBookmarkDto } from '../bookmarks/dto/ingest-bookmark.dto';
+import { EnrichmentService } from '../bookmarks/enrichment/enrichment.service';
+import { TodosRepository } from '../bookmarks/todos.repository';
+import { DrizzleTransactionService } from '../database/drizzle-transaction.service';
+import type { BookmarkSelect } from '../schema/bookmarks.schema';
 
 function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -62,9 +63,7 @@ export class IngestService {
     finalTags: string[],
     actionItems: string[],
   ): Promise<BookmarkSelect> {
-    const embedding = await this.aiClient.generateEmbedding(
-      `${finalSummary} ${finalTags.join(' ')}`,
-    );
+    const embedding = await this.aiClient.generateEmbedding(`${finalSummary} ${finalTags.join(' ')}`);
 
     return this.transactionService.execute(async () => {
       const updated = await this.bookmarksRepository.updateEnrichment(bookmarkId, {
@@ -74,9 +73,7 @@ export class IngestService {
         status: 'COMPLETED',
       });
 
-      await this.todosRepository.insertMany(
-        actionItems.map((task) => ({ bookmarkId, task })),
-      );
+      await this.todosRepository.insertMany(actionItems.map((task) => ({ bookmarkId, task })));
 
       return updated;
     });

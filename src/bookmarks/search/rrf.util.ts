@@ -1,6 +1,5 @@
-
 export class RrfUtil {
-  private static readonly RRF_K = 60
+  private static readonly RRF_K = 60;
 
   static fuse(vectorIds: string[], lexicalIds: string[]) {
     const scores: Record<string, number> = {};
@@ -17,6 +16,5 @@ export class RrfUtil {
     return ids.forEach((id, index) => {
       scores[id] = (scores[id] ?? 0) + 1 / (this.RRF_K + index + 1);
     });
-  };
-
+  }
 }

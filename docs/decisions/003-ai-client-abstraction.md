@@ -25,6 +25,7 @@ src/ai/
 `EnrichmentService` injects `AI_CLIENT: IAiClient` — it has zero Gemini imports.
 
 `IAiClient` is intentionally narrow:
+
 ```typescript
 interface IAiClient {
   generateStructured(prompt: string, schema: AiResponseSchema): Promise<unknown>;
@@ -36,6 +37,7 @@ interface IAiClient {
 ## Swapping providers
 
 Change one line in `ai.module.ts`:
+
 ```typescript
 { provide: AI_CLIENT, useExisting: GeminiClient }
 // → { provide: AI_CLIENT, useExisting: ClaudeClient }

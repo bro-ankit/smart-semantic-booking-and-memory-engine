@@ -1,12 +1,13 @@
 import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { AI_CLIENT } from '../../ai/ai.constants';
 import type { IAiClient } from '../../ai/ai.interface';
-import { SearchService } from '../../bookmarks/search/search.service';
 import { BookmarksRepository } from '../../bookmarks/bookmarks.repository';
+import { SearchService } from '../../bookmarks/search/search.service';
 import { TodosRepository } from '../../bookmarks/todos.repository';
 import { AGENT_ERRORS, TOOL_NAMES } from '../agent.constants';
-import type { SearchBookmarksArgs, CreateTodoArgs, SummarizeTagArgs } from '../agent.types';
+import type { CreateTodoArgs, SearchBookmarksArgs, SummarizeTagArgs } from '../agent.types';
 
 @Injectable()
 export class AgentToolExecutorService {
@@ -39,7 +40,11 @@ export class AgentToolExecutorService {
   private async searchBookmarks({ query }: SearchBookmarksArgs): Promise<unknown> {
     const results = await this.searchService.search(query);
     if (results.length === 0) {
-      return { found: 0, message: 'No bookmarks found for this query. The knowledge base may not contain relevant content on this topic.' };
+      return {
+        found: 0,
+        message:
+          'No bookmarks found for this query. The knowledge base may not contain relevant content on this topic.',
+      };
     }
     return {
       found: results.length,
@@ -59,9 +64,7 @@ export class AgentToolExecutorService {
       return { found: 0, message: `No completed bookmarks found with tag "${normalizedTag}".` };
     }
 
-    const context = bookmarks
-      .map((b) => `- ${b.contentSummary} (tags: ${b.tags.join(', ')})`)
-      .join('\n');
+    const context = bookmarks.map((b) => `- ${b.contentSummary} (tags: ${b.tags.join(', ')})`).join('\n');
 
     const summary = await this.aiClient.generateText(
       `You are a knowledge synthesiser. Given a list of bookmark summaries on a topic, write a concise 3-4 sentence synthesis of what is known about the topic. Stick only to what the bookmarks say.`,

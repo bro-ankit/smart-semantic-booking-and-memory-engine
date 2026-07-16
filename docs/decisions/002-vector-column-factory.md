@@ -19,12 +19,12 @@ This created a single global vector type baked at 768 dimensions. Every vector c
 
 Embedding model dimensions are not stable product decisions:
 
-| Model | Dimensions | Use Case |
-|---|---|---|
-| Gemini `text-embedding-004` | 768 | Current baseline |
-| OpenAI `text-embedding-3-small` | 1536 | Higher precision |
-| `sentence-transformers/all-MiniLM` | 384 | Edge / low-latency |
-| Future models | Unknown | Unknown |
+| Model                              | Dimensions | Use Case           |
+| ---------------------------------- | ---------- | ------------------ |
+| Gemini `text-embedding-004`        | 768        | Current baseline   |
+| OpenAI `text-embedding-3-small`    | 1536       | Higher precision   |
+| `sentence-transformers/all-MiniLM` | 384        | Edge / low-latency |
+| Future models                      | Unknown    | Unknown            |
 
 A hardcoded `768` means a dimension change requires modifying the custom type definition itself — a risky edit touching all vector columns simultaneously — and provides no way to run mixed-dimension columns in the same schema.
 
@@ -45,8 +45,8 @@ export function createVectorType(dimensions: number) {
 Named exports document which model each instance targets:
 
 ```typescript
-export const GEMINI_EMBEDDING_DIMENSIONS  = 768  as const;
-export const OPENAI_EMBEDDING_DIMENSIONS  = 1536 as const;
+export const GEMINI_EMBEDDING_DIMENSIONS = 768 as const;
+export const OPENAI_EMBEDDING_DIMENSIONS = 1536 as const;
 
 export const geminiVector = createVectorType(GEMINI_EMBEDDING_DIMENSIONS);
 ```

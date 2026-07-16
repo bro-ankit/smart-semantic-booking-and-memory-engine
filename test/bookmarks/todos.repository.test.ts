@@ -1,5 +1,5 @@
-import { TodosRepository } from '../../src/bookmarks/todos.repository';
 import { BookmarksRepository } from '../../src/bookmarks/bookmarks.repository';
+import { TodosRepository } from '../../src/bookmarks/todos.repository';
 import { bookmarksTable } from '../../src/schema/bookmarks.schema';
 import { todosTable } from '../../src/schema/todos.schema';
 import { DrizzleTestEnvironment } from '../helpers/drizzle-test-environment';

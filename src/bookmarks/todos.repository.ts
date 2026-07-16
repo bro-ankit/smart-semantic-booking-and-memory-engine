@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { DRIZZLE_DB } from '../database/database.constants';
-import { DrizzleTransactionContext } from '../database/drizzle-transaction.context';
 import type { DrizzleDb } from '../database/database.module';
-import { todosTable, type TodoInsert } from '../schema/todos.schema';
+import { DrizzleTransactionContext } from '../database/drizzle-transaction.context';
+import { type TodoInsert, todosTable } from '../schema/todos.schema';
 
 @Injectable()
 export class TodosRepository {

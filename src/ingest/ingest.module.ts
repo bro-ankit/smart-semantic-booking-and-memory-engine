@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
-import { IngestService } from './ingest.service';
-import { EnrichmentService } from '../bookmarks/enrichment/enrichment.service';
+
 import { BookmarksRepository } from '../bookmarks/bookmarks.repository';
+import { EnrichmentService } from '../bookmarks/enrichment/enrichment.service';
 import { TodosRepository } from '../bookmarks/todos.repository';
+import { IngestService } from './ingest.service';
 
 @Module({
   providers: [IngestService, EnrichmentService, BookmarksRepository, TodosRepository],

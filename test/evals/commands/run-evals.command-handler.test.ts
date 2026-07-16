@@ -1,19 +1,31 @@
 import { TestBed } from '@automock/jest';
-import { RunEvalsCommandHandler } from '../../../src/evals/commands/run-evals.command-handler';
-import { RunEvalsCommand } from '../../../src/evals/commands/run-evals.command';
-import { EvalGoldenSetService } from '../../../src/evals/golden-set/eval-golden-set.service';
+
 import { RAGService } from '../../../src/bookmarks/rag/rag.service';
-import { EvalJudgeService } from '../../../src/evals/judge/eval-judge.service';
+import { RunEvalsCommand } from '../../../src/evals/commands/run-evals.command';
+import { RunEvalsCommandHandler } from '../../../src/evals/commands/run-evals.command-handler';
 import { EvalsRepository } from '../../../src/evals/evals.repository';
 import type { GoldenCase } from '../../../src/evals/evals.types';
+import { EvalGoldenSetService } from '../../../src/evals/golden-set/eval-golden-set.service';
+import { EvalJudgeService } from '../../../src/evals/judge/eval-judge.service';
 import { mockEvalRunSelect } from '../../__mocks__/eval-run.mock';
 
 const GOLDEN_CASES: GoldenCase[] = [
-  { question: 'What are Kafka consumer groups?', expectedTopics: ['partition assignment', 'rebalancing'], expectedSourceTag: 'kafka' },
-  { question: 'How does pgvector work?', expectedTopics: ['cosine distance', 'HNSW index'], expectedSourceTag: 'pgvector' },
+  {
+    question: 'What are Kafka consumer groups?',
+    expectedTopics: ['partition assignment', 'rebalancing'],
+    expectedSourceTag: 'kafka',
+  },
+  {
+    question: 'How does pgvector work?',
+    expectedTopics: ['cosine distance', 'HNSW index'],
+    expectedSourceTag: 'pgvector',
+  },
 ];
 
-const RAG_RESULT = { answer: 'Consumer groups enable parallel consumption.', contextChunks: ['[https://kafka.apache.org] Kafka partitions.'] };
+const RAG_RESULT = {
+  answer: 'Consumer groups enable parallel consumption.',
+  contextChunks: ['[https://kafka.apache.org] Kafka partitions.'],
+};
 
 const JUDGE_RESULT = { relevance: 0.9, faithfulness: 0.85, reasoning: 'Good coverage of expected topics.' };
 
@@ -38,11 +50,21 @@ describe('RunEvalsCommandHandler Unit Test', () => {
   describe('Given execute, When all cases succeed', () => {
     test('Then it scores each case and returns a summary with correct averages', async () => {
       const run1 = mockEvalRunSelect({ id: 'run-uuid-001' });
-      const run2 = mockEvalRunSelect({ id: 'run-uuid-002', goldenQuestion: 'How does pgvector work?', expectedTopics: ['cosine distance', 'HNSW index'], expectedSourceTag: 'pgvector', relevanceScore: 0.6, faithfulnessScore: 0.65, reasoning: 'Partially covered.' });
+      const run2 = mockEvalRunSelect({
+        id: 'run-uuid-002',
+        goldenQuestion: 'How does pgvector work?',
+        expectedTopics: ['cosine distance', 'HNSW index'],
+        expectedSourceTag: 'pgvector',
+        relevanceScore: 0.6,
+        faithfulnessScore: 0.65,
+        reasoning: 'Partially covered.',
+      });
 
       goldenSetService.load.mockReturnValue(GOLDEN_CASES);
       ragService.execute.mockResolvedValue(RAG_RESULT);
-      evalJudgeService.score.mockResolvedValueOnce(JUDGE_RESULT).mockResolvedValueOnce({ relevance: 0.6, faithfulness: 0.65, reasoning: 'Partially covered.' });
+      evalJudgeService.score
+        .mockResolvedValueOnce(JUDGE_RESULT)
+        .mockResolvedValueOnce({ relevance: 0.6, faithfulness: 0.65, reasoning: 'Partially covered.' });
       evalsRepository.insert.mockResolvedValueOnce(run1).mockResolvedValueOnce(run2);
 
       const result = await sut.execute(new RunEvalsCommand());
@@ -74,12 +96,15 @@ describe('RunEvalsCommandHandler Unit Test', () => {
 
   describe('Given execute, When a case throws during RAG', () => {
     test('Then it skips the failing case and includes the remaining cases in the summary', async () => {
-      const run2 = mockEvalRunSelect({ id: 'run-uuid-002', goldenQuestion: 'How does pgvector work?', expectedTopics: ['cosine distance', 'HNSW index'], expectedSourceTag: 'pgvector' });
+      const run2 = mockEvalRunSelect({
+        id: 'run-uuid-002',
+        goldenQuestion: 'How does pgvector work?',
+        expectedTopics: ['cosine distance', 'HNSW index'],
+        expectedSourceTag: 'pgvector',
+      });
 
       goldenSetService.load.mockReturnValue(GOLDEN_CASES);
-      ragService.execute
-        .mockRejectedValueOnce(new Error('Vector DB unavailable'))
-        .mockResolvedValueOnce(RAG_RESULT);
+      ragService.execute.mockRejectedValueOnce(new Error('Vector DB unavailable')).mockResolvedValueOnce(RAG_RESULT);
       evalJudgeService.score.mockResolvedValue(JUDGE_RESULT);
       evalsRepository.insert.mockResolvedValue(run2);
 

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+
 import { DRIZZLE_DB } from './database.constants';
 import type { DrizzleDb } from './database.module';
 import { DrizzleTransactionContext, type DrizzleTx } from './drizzle-transaction.context';
@@ -15,8 +16,6 @@ export class DrizzleTransactionService {
       return fn();
     }
 
-    return this.db.transaction((tx) =>
-      this.txContext.runInContext(tx as DrizzleTx, fn),
-    );
+    return this.db.transaction((tx) => this.txContext.runInContext(tx as DrizzleTx, fn));
   }
 }

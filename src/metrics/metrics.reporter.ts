@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
+import type { TokenUsage } from '../ai/ai.interface';
 import { DRIZZLE_DB } from '../database/database.constants';
 import type { DrizzleDb } from '../database/database.module';
 import { metricLogsTable, type MetricOperation } from '../schema/metric-logs.schema';
-import type { TokenUsage } from '../ai/ai.interface';
 
 type RecordInput = {
   operation: MetricOperation;

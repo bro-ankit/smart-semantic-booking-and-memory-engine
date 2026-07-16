@@ -1,5 +1,6 @@
-import { Expose, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { Expose, Type } from 'class-transformer';
+
 import { INGESTION_STATUSES, type IngestionStatus } from '../../schema/bookmarks.schema';
 
 export class BookmarkResponseDto {

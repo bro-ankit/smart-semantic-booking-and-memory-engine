@@ -1,13 +1,14 @@
 import { TestBed } from '@automock/jest';
 import { getQueueToken } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
-import { IngestBookmarkCommandHandler } from '../../../src/bookmarks/commands/ingest-bookmark.command-handler';
-import { IngestBookmarkCommand } from '../../../src/bookmarks/commands/ingest-bookmark.command';
-import { IngestService } from '../../../src/ingest/ingest.service';
+
 import { BookmarksRepository } from '../../../src/bookmarks/bookmarks.repository';
+import { IngestBookmarkCommand } from '../../../src/bookmarks/commands/ingest-bookmark.command';
+import { IngestBookmarkCommandHandler } from '../../../src/bookmarks/commands/ingest-bookmark.command-handler';
+import { IngestService } from '../../../src/ingest/ingest.service';
 import { SCRAPING_QUEUE, type ScrapingJobData } from '../../../src/scraper/scraper.constants';
-import { AssertUtils } from '../../utils/assert.utils';
 import { mockBookmarkSelect } from '../../__mocks__/bookmark.mock';
+import { AssertUtils } from '../../utils/assert.utils';
 
 const BOOKMARK_ID = 'bookmark-uuid-001';
 const URL = 'https://example.com/kafka-partitioning';
@@ -98,10 +99,7 @@ describe('IngestBookmarkCommandHandler Unit Test', () => {
         bookmarksRepository.insert.mockResolvedValue(PENDING_BOOKMARK);
         scrapingQueue.add.mockRejectedValue(new Error('Redis unavailable'));
 
-        await AssertUtils.assertThrows(
-          () => sut.execute(new IngestBookmarkCommand({ url: URL })),
-          'Redis unavailable',
-        );
+        await AssertUtils.assertThrows(() => sut.execute(new IngestBookmarkCommand({ url: URL })), 'Redis unavailable');
       });
     });
   });

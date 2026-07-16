@@ -7,8 +7,8 @@ export const GEMINI_ERRORS = {
 
 // Defaults; override via GEMINI_COST_INPUT_PER_MILLION / GEMINI_COST_OUTPUT_PER_MILLION env vars
 export const GEMINI_COST_DEFAULTS = {
-  INPUT: 0.30,
-  OUTPUT: 1.00,
+  INPUT: 0.3,
+  OUTPUT: 1.0,
 } as const;
 
 // Defaults; override via GEMINI_GENERATION_MODEL / GEMINI_EMBEDDING_MODEL env vars.

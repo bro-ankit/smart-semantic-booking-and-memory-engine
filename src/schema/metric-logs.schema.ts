@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, real, timestamp } from 'drizzle-orm/pg-core';
+import { integer, pgTable, real, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const METRIC_OPERATIONS = ['ENRICHMENT', 'EMBEDDING', 'RAG_ASK', 'AGENT_TURN', 'EVAL_JUDGE'] as const;
 export type MetricOperation = (typeof METRIC_OPERATIONS)[number];

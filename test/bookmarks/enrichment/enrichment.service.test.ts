@@ -1,9 +1,10 @@
-import { HttpStatus } from '@nestjs/common';
 import { TestBed } from '@automock/jest';
+import { HttpStatus } from '@nestjs/common';
+
+import { AI_CLIENT } from '../../../src/ai/ai.constants';
+import type { IAiClient } from '../../../src/ai/ai.interface';
 import { EnrichmentService } from '../../../src/bookmarks/enrichment/enrichment.service';
 import type { BookmarkEnrichment } from '../../../src/bookmarks/enrichment/enrichment.zod';
-import type { IAiClient } from '../../../src/ai/ai.interface';
-import { AI_CLIENT } from '../../../src/ai/ai.constants';
 import { AssertUtils } from '../../utils/assert.utils';
 
 describe('EnrichmentService Unit Test', () => {
@@ -105,5 +106,5 @@ Return a JSON object with:
         );
       });
     });
-  })
+  });
 });

@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { DRIZZLE_DB } from '../database/database.constants';
-import { DrizzleTransactionContext } from '../database/drizzle-transaction.context';
 import type { DrizzleDb } from '../database/database.module';
-import { evalRunsTable, type EvalRunInsert, type EvalRunSelect } from '../schema/eval-runs.schema';
+import { DrizzleTransactionContext } from '../database/drizzle-transaction.context';
+import { type EvalRunInsert, type EvalRunSelect, evalRunsTable } from '../schema/eval-runs.schema';
 
 @Injectable()
 export class EvalsRepository {

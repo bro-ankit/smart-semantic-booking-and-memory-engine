@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
+
 import { AiUsageContextService } from '../../src/metrics/ai-usage-context.service';
 import { AiUsageDiscoveryService } from '../../src/metrics/ai-usage-discovery.service';
 import { TrackAiUsage } from '../../src/metrics/track-ai-usage.decorator';
@@ -9,7 +10,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 @Injectable()
 class DummyEnrichmentService {
-  constructor(private readonly context: AiUsageContextService) { }
+  constructor(private readonly context: AiUsageContextService) {}
 
   @TrackAiUsage('ENRICHMENT')
   async run(): Promise<string | undefined> {

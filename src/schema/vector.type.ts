@@ -41,9 +41,7 @@ export function buildVectorConfig(dimensions: number): VectorColumnConfig {
 }
 
 export function createVectorType(dimensions: number) {
-  return customType<{ data: number[]; driverData: string }>(
-    buildVectorConfig(dimensions),
-  );
+  return customType<{ data: number[]; driverData: string }>(buildVectorConfig(dimensions));
 }
 
 export const GEMINI_EMBEDDING_DIMENSIONS = 768 as const;

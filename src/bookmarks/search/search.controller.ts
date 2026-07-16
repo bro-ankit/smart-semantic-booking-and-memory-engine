@@ -1,9 +1,10 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { SearchQuery } from './search.query';
+
 import { SearchQueryDto } from '../dto/search-query.dto';
 import { SearchResultDto } from '../dto/search-result.dto';
+import { SearchQuery } from './search.query';
 
 @ApiTags('search')
 @Controller('search')

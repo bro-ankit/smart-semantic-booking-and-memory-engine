@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
-import { type IngestionStatus, INGESTION_STATUSES } from '../../schema/bookmarks.schema';
+
+import { INGESTION_STATUSES, type IngestionStatus } from '../../schema/bookmarks.schema';
 
 export class SearchResultDto {
   @Expose()

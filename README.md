@@ -158,6 +158,7 @@ POST /api/v1/evals/run
 ```
 
 The judge is a separate Gemini call that rates two orthogonal dimensions:
+
 - **relevance** — does the answer address the question and expected topics?
 - **faithfulness** — are all claims grounded in the retrieved context (no hallucination)?
 
@@ -410,10 +411,10 @@ POST /api/v1/evals/run
 
 **Before/after — one retrieval gap, closed:** the eval harness caught that the `agent`-tagged corpus doc had never been ingested, so both agent-related questions scored `relevance: 0` (system correctly said "no context" rather than hallucinate — hence faithfulness stayed 1.0 even then). After ingesting that one document through the same human-review pipeline as everything else and re-scoring:
 
-| Question | Before | After |
-| --- | --- | --- |
+| Question                                                   | Before         | After            |
+| ---------------------------------------------------------- | -------------- | ---------------- |
 | Gemini function calling vs. prompt-engineered tool routing | `relevance: 0` | `relevance: 0.9` |
-| Why the agent needs a max-iteration control loop | `relevance: 0` | `relevance: 0.5` |
+| Why the agent needs a max-iteration control loop           | `relevance: 0` | `relevance: 0.5` |
 
 Snapshots: [`eval-response-before-agent-fix.json`](eval-response-before-agent-fix.json) → [`eval-response-after-agent-fix.json`](eval-response-after-agent-fix.json).
 
@@ -423,18 +424,18 @@ Snapshots: [`eval-response-before-agent-fix.json`](eval-response-before-agent-fi
 
 Full records in [`docs/decisions/`](docs/decisions/). Highlights:
 
-| ADR                                                                 | Decision                                          | Why                                                                                            |
-| ------------------------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| [003](docs/decisions/003-ai-client-abstraction.md)                  | Provider-agnostic `IAiClient`                     | Swap LLM providers without touching service code                                               |
-| [006](docs/decisions/006-drizzle-transaction-propagation.md)        | `DrizzleTransactionContext` via AsyncLocalStorage | Transaction propagation across async boundaries without passing context manually               |
-| [009](docs/decisions/009-semantic-search-query.md)                  | Cosine distance (`<=>`) over L2                   | Magnitude-invariant — correct for embeddings regardless of text length                         |
-| [011](docs/decisions/011-ingestion-state-machine.md)                | `PENDING` written before any LLM call             | No silent failures; every attempt is observable                                                |
-| [012](docs/decisions/012-resilience-module.md)                      | `@Resilient()` decorator                          | One-line fault tolerance; callers are unaware of retries                                       |
-| [013](docs/decisions/013-async-url-ingestion-bullmq.md)             | BullMQ queue for URL ingestion                    | Non-blocking HTTP response; durable across restarts; built-in retry                            |
-| [014](docs/decisions/014-tiered-scraping-strategy.md)               | Cheerio/Readability first, Puppeteer fallback     | Puppeteer only when genuinely needed — saves ~2–5s and 250MB RAM per static page               |
-| [015](docs/decisions/015-cqrs-command-handler-and-ingest-module.md) | CQRS command handler for ingestion branching      | Thin controller; no circular module dependencies                                               |
-| [016](docs/decisions/016-human-review-before-embedding.md)          | Human review gate before embedding                | Vector store only ever holds human-approved content; corrections become training signal        |
-| [017](docs/decisions/017-llm-as-judge-eval-harness.md)              | LLM-as-judge over keyword matching                | Measures relevance and faithfulness independently; catches hallucinations that keywords cannot |
-| [018](docs/decisions/018-ambient-ai-usage-context.md)               | Ambient `AsyncLocalStorage` for AI usage attribution | Same AI-client methods serve multiple operations; ambient context tags a call without polluting `IAiClient`'s contract |
-| [019](docs/decisions/019-synchronous-in-process-metrics-recording.md) | Metrics recorded in-process, not event-driven     | A broker only relocates the same failure mode at this scale; adds a component to solve nothing yet |
-| [020](docs/decisions/020-hybrid-search-rrf-fusion.md)               | RRF over score-blending for hybrid search          | Cosine distance and `ts_rank` are on incomparable scales; RRF ranks by position, no tuned weight needed |
+| ADR                                                                   | Decision                                             | Why                                                                                                                    |
+| --------------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| [003](docs/decisions/003-ai-client-abstraction.md)                    | Provider-agnostic `IAiClient`                        | Swap LLM providers without touching service code                                                                       |
+| [006](docs/decisions/006-drizzle-transaction-propagation.md)          | `DrizzleTransactionContext` via AsyncLocalStorage    | Transaction propagation across async boundaries without passing context manually                                       |
+| [009](docs/decisions/009-semantic-search-query.md)                    | Cosine distance (`<=>`) over L2                      | Magnitude-invariant — correct for embeddings regardless of text length                                                 |
+| [011](docs/decisions/011-ingestion-state-machine.md)                  | `PENDING` written before any LLM call                | No silent failures; every attempt is observable                                                                        |
+| [012](docs/decisions/012-resilience-module.md)                        | `@Resilient()` decorator                             | One-line fault tolerance; callers are unaware of retries                                                               |
+| [013](docs/decisions/013-async-url-ingestion-bullmq.md)               | BullMQ queue for URL ingestion                       | Non-blocking HTTP response; durable across restarts; built-in retry                                                    |
+| [014](docs/decisions/014-tiered-scraping-strategy.md)                 | Cheerio/Readability first, Puppeteer fallback        | Puppeteer only when genuinely needed — saves ~2–5s and 250MB RAM per static page                                       |
+| [015](docs/decisions/015-cqrs-command-handler-and-ingest-module.md)   | CQRS command handler for ingestion branching         | Thin controller; no circular module dependencies                                                                       |
+| [016](docs/decisions/016-human-review-before-embedding.md)            | Human review gate before embedding                   | Vector store only ever holds human-approved content; corrections become training signal                                |
+| [017](docs/decisions/017-llm-as-judge-eval-harness.md)                | LLM-as-judge over keyword matching                   | Measures relevance and faithfulness independently; catches hallucinations that keywords cannot                         |
+| [018](docs/decisions/018-ambient-ai-usage-context.md)                 | Ambient `AsyncLocalStorage` for AI usage attribution | Same AI-client methods serve multiple operations; ambient context tags a call without polluting `IAiClient`'s contract |
+| [019](docs/decisions/019-synchronous-in-process-metrics-recording.md) | Metrics recorded in-process, not event-driven        | A broker only relocates the same failure mode at this scale; adds a component to solve nothing yet                     |
+| [020](docs/decisions/020-hybrid-search-rrf-fusion.md)                 | RRF over score-blending for hybrid search            | Cosine distance and `ts_rank` are on incomparable scales; RRF ranks by position, no tuned weight needed                |

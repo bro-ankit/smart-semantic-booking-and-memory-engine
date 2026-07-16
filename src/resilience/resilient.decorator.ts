@@ -1,4 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
+
 import type { ResiliencePolicyOptions } from './resilience-policy.types';
 
 export const RESILIENCE_KEY = Symbol('RESILIENCE_KEY');
