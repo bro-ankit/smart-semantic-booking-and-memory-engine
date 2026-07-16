@@ -181,6 +181,8 @@ Run before and after any retrieval or prompt change to prove it helped.
 
 ### Layer 6 — Usage & Cost Metrics
 
+![Usage & Cost Metrics](docs/diagrams/usage-and-cost-metrics.png)
+
 Every Gemini call logs its token usage and estimated cost to a `metric_logs` table, tagged by logical operation (`ENRICHMENT`, `RAG_ASK`, `EVAL_JUDGE`, `AGENT_TURN`) — with **zero bookkeeping in any calling service**.
 
 ```
