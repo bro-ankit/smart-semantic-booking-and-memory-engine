@@ -23,6 +23,8 @@ export class RagUtils {
     return [
       "You are a helpful assistant. Answer the user's question using ONLY the following bookmarked content.",
       `If the answer cannot be found in the provided context, respond with: "${NO_CONTEXT_REPLY}"`,
+      'Be thorough: include every relevant detail from the context that helps answer the question completely, not just the first fact you find.',
+      'Answer directly — do not reference "Bookmark 1/2/3" or mention which bookmark information came from.',
       '',
       'Context:',
       contextBlocks,

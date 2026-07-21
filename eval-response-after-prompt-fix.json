@@ -1,14 +1,8 @@
 {
   "totalCases": 17,
-  "avgRelevance": 0.87,
+  "avgRelevance": 0.9,
   "avgFaithfulness": 1,
-  "weakCases": [
-    {
-      "question": "Why does a RAG agent need a control loop with a max iteration limit?",
-      "relevanceScore": 0.5,
-      "faithfulnessScore": 1
-    }
-  ],
+  "weakCases": [],
   "runs": [
     {
       "id": "25afcd37-827b-40a9-900d-b6a4881c84ea",
@@ -115,12 +109,12 @@
       "createdAt": "2026-07-09T08:58:53.180Z"
     },
     {
-      "id": "8ae699a5-029c-4139-b8a9-38eeb05c76dd",
+      "id": "a11d0651-827a-42bd-a54a-164a89aea809",
       "goldenQuestion": "Why does a RAG agent need a control loop with a max iteration limit?",
-      "relevanceScore": 0.5,
+      "relevanceScore": 0.9,
       "faithfulnessScore": 1,
-      "reasoning": "The answer is perfectly faithful to the retrieved context, which explicitly states that a max iteration limit prevents infinite loops. However, the relevance is moderate (0.5) because it only addresses one of the expected topics ('infinite loop prevention') and misses others mentioned in the context (like 'truncated flag' and 'partial results') or expected in the prompt ('tool chaining', 'resource bound').",
-      "createdAt": "2026-07-16T08:14:01.480Z"
+      "reasoning": "The system's answer is highly faithful, with every claim directly supported by the retrieved context (specifically the second chunk). It is also highly relevant, directly answering why the control loop and max iteration limit are needed, and covering expected topics such as infinite loop prevention, truncated flags, and partial results. Only 'tool chaining' and 'resource bound' are not explicitly named, though their concepts are described.",
+      "createdAt": "2026-07-21T09:07:12.688Z"
     },
     {
       "id": "3a658df2-7204-4ec6-8791-e70aa7430aaf",

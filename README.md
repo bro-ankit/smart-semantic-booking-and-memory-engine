@@ -400,25 +400,31 @@ POST /api/v1/evals/run
 ```json
 {
   "totalCases": 17,
-  "avgRelevance": 0.87,
+  "avgRelevance": 0.9,
   "avgFaithfulness": 1.0,
-  "weakCases": [
-    { "question": "Why does a RAG agent need a control loop with a max iteration limit?", "relevanceScore": 0.5, "faithfulnessScore": 1.0 }
-  ],
+  "weakCases": [],
   "runs": [...]
 }
 ```
 
-**Current scores — 17/17 golden-set cases: `avgRelevance: 0.87`, `avgFaithfulness: 1.0`** (full data in [`eval-response.json`](eval-response.json)). Faithfulness has never dropped below 1.0 across any scored case — the system has never once hallucinated; every claim is either grounded in retrieved context or the system explicitly says it lacks context.
+**Current scores — 17/17 golden-set cases: `avgRelevance: 0.9`, `avgFaithfulness: 1.0`, zero weak cases** (full data in [`eval-response-after-prompt-fix.json`](eval-response-after-prompt-fix.json)). Faithfulness has never dropped below 1.0 across any scored case — the system has never once hallucinated; every claim is either grounded in retrieved context or the system explicitly says it lacks context.
 
-**Before/after — one retrieval gap, closed:** the eval harness caught that the `agent`-tagged corpus doc had never been ingested, so both agent-related questions scored `relevance: 0` (system correctly said "no context" rather than hallucinate — hence faithfulness stayed 1.0 even then). After ingesting that one document through the same human-review pipeline as everything else and re-scoring:
+**Before/after #1 — a retrieval gap, closed:** the eval harness caught that the `agent`-tagged corpus doc had never been ingested, so both agent-related questions scored `relevance: 0` (system correctly said "no context" rather than hallucinate — hence faithfulness stayed 1.0 even then). After ingesting that one document through the same human-review pipeline as everything else and re-scoring:
 
 | Question                                                   | Before         | After            |
 | ---------------------------------------------------------- | -------------- | ---------------- |
 | Gemini function calling vs. prompt-engineered tool routing | `relevance: 0` | `relevance: 0.9` |
 | Why the agent needs a max-iteration control loop           | `relevance: 0` | `relevance: 0.5` |
 
-Snapshots: [`eval-response-before-agent-fix.json`](eval-response-before-agent-fix.json) → [`eval-response-after-agent-fix.json`](eval-response-after-agent-fix.json).
+**Before/after #2 — a generation gap, closed:** the "control loop" case above was still the harness's one weak point at `0.5`. The judge's own reasoning showed why: the retrieved context already contained everything needed (`truncated flag`, `partial results`), but the answer only stated the first fact it found and stopped - a prompt problem, not a retrieval or data problem. `RagUtils.buildSystemPrompt` gained two lines: an explicit instruction to be thorough (use every relevant detail, not just the first fact), and to stop citing "Bookmark 1/2/3" by number in the answer. Re-scoring the same question after the prompt change:
+
+| Question                                         | Before (post-ingest) | After (post-prompt-fix) |
+| ------------------------------------------------ | -------------------- | ----------------------- |
+| Why the agent needs a max-iteration control loop | `relevance: 0.5`     | `relevance: 0.9`        |
+
+Two different categories of RAG failure, diagnosed and fixed differently — this is the "run the eval before and after a change to prove it helped" loop the harness exists for.
+
+Snapshots: [`eval-response-before-agent-fix.json`](eval-response-before-agent-fix.json) → [`eval-response-after-agent-fix.json`](eval-response-after-agent-fix.json) → [`eval-response-after-prompt-fix.json`](eval-response-after-prompt-fix.json) (current, post-prompt-fix).
 
 ---
 

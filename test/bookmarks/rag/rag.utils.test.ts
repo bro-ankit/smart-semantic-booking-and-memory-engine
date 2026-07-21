@@ -29,6 +29,8 @@ describe('RagUtils Unit Test', () => {
   const SINGLE_BOOKMARK_PROMPT =
     "You are a helpful assistant. Answer the user's question using ONLY the following bookmarked content.\n" +
     'If the answer cannot be found in the provided context, respond with: "I don\'t have enough context in my bookmarks to answer this. Try ingesting relevant content first."\n' +
+    'Be thorough: include every relevant detail from the context that helps answer the question completely, not just the first fact you find.\n' +
+    'Answer directly — do not reference "Bookmark 1/2/3" or mention which bookmark information came from.\n' +
     '\n' +
     'Context:\n' +
     '**Bookmark 1**\n' +
@@ -39,6 +41,8 @@ describe('RagUtils Unit Test', () => {
   const TWO_BOOKMARK_PROMPT =
     "You are a helpful assistant. Answer the user's question using ONLY the following bookmarked content.\n" +
     'If the answer cannot be found in the provided context, respond with: "I don\'t have enough context in my bookmarks to answer this. Try ingesting relevant content first."\n' +
+    'Be thorough: include every relevant detail from the context that helps answer the question completely, not just the first fact you find.\n' +
+    'Answer directly — do not reference "Bookmark 1/2/3" or mention which bookmark information came from.\n' +
     '\n' +
     'Context:\n' +
     '**Bookmark 1**\n' +
@@ -54,6 +58,8 @@ describe('RagUtils Unit Test', () => {
   const SINGLE_TAG_PROMPT =
     "You are a helpful assistant. Answer the user's question using ONLY the following bookmarked content.\n" +
     'If the answer cannot be found in the provided context, respond with: "I don\'t have enough context in my bookmarks to answer this. Try ingesting relevant content first."\n' +
+    'Be thorough: include every relevant detail from the context that helps answer the question completely, not just the first fact you find.\n' +
+    'Answer directly — do not reference "Bookmark 1/2/3" or mention which bookmark information came from.\n' +
     '\n' +
     'Context:\n' +
     '**Bookmark 1**\n' +
