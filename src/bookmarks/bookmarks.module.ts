@@ -11,6 +11,7 @@ import { CorrectionsRepository } from './corrections.repository';
 import { RAGController } from './rag/rag.controller';
 import { RAGService } from './rag/rag.service';
 import { REVIEW_HANDLERS } from './review';
+import { RerankerService } from './search/reranker.service';
 import { SearchController } from './search/search.controller';
 import { SearchQueryHandler } from './search/search.query-handler';
 import { SearchService } from './search/search.service';
@@ -19,6 +20,7 @@ import { SearchService } from './search/search.service';
   imports: [CqrsModule, IngestModule, ScraperModule, BullModule.registerQueue({ name: SCRAPING_QUEUE })],
   providers: [
     SearchService,
+    RerankerService,
     SearchQueryHandler,
     RAGService,
     CorrectionsRepository,

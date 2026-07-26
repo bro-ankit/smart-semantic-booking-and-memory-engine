@@ -24,4 +24,7 @@ export const ENV_VARIABLES = {
   EVAL: {
     INTER_CASE_DELAY_MS: 'EVAL_INTER_CASE_DELAY_MS',
   },
+  RERANKER: {
+    MODEL: 'RERANKER_MODEL',
+  },
 } as const;

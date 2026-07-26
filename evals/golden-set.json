@@ -1,43 +1,5 @@
 [
   {
-    "question": "What is the difference between Gemini native function calling and prompt-engineering tool routing?",
-    "expectedTopics": [
-      "model decides which tool",
-      "structured functionCall response",
-      "reliability",
-      "no regex parsing",
-      "tool definitions"
-    ],
-    "expectedSourceTag": "agent"
-  },
-  {
-    "question": "Why does a RAG agent need a control loop with a max iteration limit?",
-    "expectedTopics": [
-      "infinite loop prevention",
-      "tool chaining",
-      "partial result",
-      "truncated flag",
-      "resource bound"
-    ],
-    "expectedSourceTag": "agent"
-  },
-  {
-    "question": "Why is a BullMQ job queue better than processing URL scraping synchronously in the HTTP handler?",
-    "expectedTopics": ["non-blocking response", "durability", "retry on failure", "backpressure", "worker isolation"],
-    "expectedSourceTag": "bullmq"
-  },
-  {
-    "question": "What does AsyncLocalStorage solve when propagating database transactions across async boundaries?",
-    "expectedTopics": [
-      "implicit propagation",
-      "async context",
-      "transaction scope",
-      "no prop drilling",
-      "request-scoped"
-    ],
-    "expectedSourceTag": "nestjs"
-  },
-  {
     "question": "Why store both the AI-generated summary and the human-edited version separately?",
     "expectedTopics": [
       "training signal",
@@ -49,29 +11,8 @@
     "expectedSourceTag": "human-review"
   },
   {
-    "question": "What is the role of text embeddings in a semantic search system?",
-    "expectedTopics": [
-      "high-dimensional vector",
-      "semantic meaning",
-      "cosine distance",
-      "encoder model",
-      "nearest neighbour"
-    ],
-    "expectedSourceTag": "embeddings"
-  },
-  {
     "question": "How does Kafka achieve horizontal consumer scaling?",
     "expectedTopics": ["partition assignment", "consumer groups", "rebalancing", "parallelism"],
-    "expectedSourceTag": "kafka"
-  },
-  {
-    "question": "What happens to a Kafka consumer group when a new consumer joins?",
-    "expectedTopics": ["rebalancing", "partition reassignment", "offset management", "group coordinator"],
-    "expectedSourceTag": "kafka"
-  },
-  {
-    "question": "What is the tradeoff between more Kafka partitions and fewer partitions?",
-    "expectedTopics": ["throughput", "latency", "rebalancing overhead", "leader election", "parallelism"],
     "expectedSourceTag": "kafka"
   },
   {
@@ -129,5 +70,64 @@
       "testability"
     ],
     "expectedSourceTag": "nestjs"
+  },
+  {
+    "question": "What is the difference between Gemini native function calling and prompt-engineering tool routing?",
+    "expectedTopics": [
+      "model decides which tool",
+      "structured functionCall response",
+      "reliability",
+      "no regex parsing",
+      "tool definitions"
+    ],
+    "expectedSourceTag": "agent"
+  },
+  {
+    "question": "Why does a RAG agent need a control loop with a max iteration limit?",
+    "expectedTopics": [
+      "infinite loop prevention",
+      "tool chaining",
+      "partial result",
+      "truncated flag",
+      "resource bound"
+    ],
+    "expectedSourceTag": "agent"
+  },
+  {
+    "question": "Why is a BullMQ job queue better than processing URL scraping synchronously in the HTTP handler?",
+    "expectedTopics": ["non-blocking response", "durability", "retry on failure", "backpressure", "worker isolation"],
+    "expectedSourceTag": "bullmq"
+  },
+  {
+    "question": "What does AsyncLocalStorage solve when propagating database transactions across async boundaries?",
+    "expectedTopics": [
+      "implicit propagation",
+      "async context",
+      "transaction scope",
+      "no prop drilling",
+      "request-scoped"
+    ],
+    "expectedSourceTag": "nestjs"
+  },
+  {
+    "question": "What is the role of text embeddings in a semantic search system?",
+    "expectedTopics": [
+      "high-dimensional vector",
+      "semantic meaning",
+      "cosine distance",
+      "encoder model",
+      "nearest neighbour"
+    ],
+    "expectedSourceTag": "embeddings"
+  },
+  {
+    "question": "What happens to a Kafka consumer group when a new consumer joins?",
+    "expectedTopics": ["rebalancing", "partition reassignment", "offset management", "group coordinator"],
+    "expectedSourceTag": "kafka"
+  },
+  {
+    "question": "What is the tradeoff between more Kafka partitions and fewer partitions?",
+    "expectedTopics": ["throughput", "latency", "rebalancing overhead", "leader election", "parallelism"],
+    "expectedSourceTag": "kafka"
   }
 ]

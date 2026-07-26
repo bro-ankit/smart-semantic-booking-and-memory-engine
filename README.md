@@ -99,9 +99,11 @@ Two retrievers run **concurrently**, then get fused:
 
 Results are merged with **Reciprocal Rank Fusion** (`score = Σ 1/(k + rank + 1)`, `k = 60`) rather than blending the two retrievers' raw scores — cosine distance and `ts_rank` live on incomparable scales, so RRF's rank-only approach avoids an arbitrary normalization step entirely (see [ADR-020](docs/decisions/020-hybrid-search-rrf-fusion.md)). Searching `"broker scaling"` surfaces a document about Kafka partitioning through the semantic side even with zero keyword overlap; an exact term or acronym gets caught by the lexical side even when its embedding neighbor isn't close.
 
+The top 10 RRF-fused candidates are then reranked by a real **cross-encoder** (`Xenova/ms-marco-MiniLM-L-6-v2`, run locally via `@huggingface/transformers` — no external API call, no per-request cost) that scores the query and each candidate as a single joint input, catching fine-grained relevance both retrievers miss on their own (see [ADR-021](docs/decisions/021-cross-encoder-reranking.md)). Only the reranked top 3 are returned.
+
 #### Grounded Q&A — `POST /api/v1/ask` and `POST /api/v1/ask/stream`
 
-The question is embedded and used to retrieve the top 3 relevant bookmarks via hybrid search. Those are injected as a system instruction into Gemini 3.5 Flash, which is instructed to answer **only** from the provided context. If nothing relevant exists, the system returns a defined fallback phrase rather than hallucinating.
+The question is embedded and used to retrieve the top 3 relevant bookmarks via hybrid search + cross-encoder reranking. Those are injected as a system instruction into Gemini 3.5 Flash, which is instructed to answer **only** from the provided context. If nothing relevant exists, the system returns a defined fallback phrase rather than hallucinating.
 
 `/ask/stream` streams the same answer token-by-token over SSE (`@Sse()`), for a faster perceived response on longer answers.
 
@@ -209,6 +211,7 @@ EnrichmentService.enrich()  [@TrackAiUsage('ENRICHMENT')]
 | Runtime           | Node.js + TypeScript (NestJS)                                         |
 | Vector DB         | PostgreSQL 16 + pgvector                                              |
 | Search            | Hybrid — pgvector cosine + Postgres full-text, fused via RRF          |
+| Reranking         | Cross-encoder (`Xenova/ms-marco-MiniLM-L-6-v2`), local ONNX inference |
 | LLM               | Gemini 3.5 Flash                                                      |
 | Embeddings        | gemini-embedding-001 (768 dimensions)                                 |
 | Validation        | Zod (structured LLM output)                                           |
@@ -400,14 +403,14 @@ POST /api/v1/evals/run
 ```json
 {
   "totalCases": 17,
-  "avgRelevance": 0.9,
+  "avgRelevance": 0.94,
   "avgFaithfulness": 1.0,
   "weakCases": [],
   "runs": [...]
 }
 ```
 
-**Current scores — 17/17 golden-set cases: `avgRelevance: 0.9`, `avgFaithfulness: 1.0`, zero weak cases** (full data in [`eval-response-after-prompt-fix.json`](eval-response-after-prompt-fix.json)). Faithfulness has never dropped below 1.0 across any scored case — the system has never once hallucinated; every claim is either grounded in retrieved context or the system explicitly says it lacks context.
+**Current scores — 17/17 golden-set cases: `avgRelevance: 0.94`, `avgFaithfulness: 1.0`, zero weak cases** (full data in [`eval-response-after-reranking.json`](eval-response-after-reranking.json)). Faithfulness has never dropped below 1.0 across any scored case — the system has never once hallucinated; every claim is either grounded in retrieved context or the system explicitly says it lacks context.
 
 **Before/after #1 — a retrieval gap, closed:** the eval harness caught that the `agent`-tagged corpus doc had never been ingested, so both agent-related questions scored `relevance: 0` (system correctly said "no context" rather than hallucinate — hence faithfulness stayed 1.0 even then). After ingesting that one document through the same human-review pipeline as everything else and re-scoring:
 
@@ -424,7 +427,17 @@ POST /api/v1/evals/run
 
 Two different categories of RAG failure, diagnosed and fixed differently — this is the "run the eval before and after a change to prove it helped" loop the harness exists for.
 
-Snapshots: [`eval-response-before-agent-fix.json`](eval-response-before-agent-fix.json) → [`eval-response-after-agent-fix.json`](eval-response-after-agent-fix.json) → [`eval-response-after-prompt-fix.json`](eval-response-after-prompt-fix.json) (current, post-prompt-fix).
+**Before/after #3 — reranking, and a false alarm caught by checking the data:** after adding the cross-encoder reranker (ADR-021), a re-run of the eval put `avgRelevance` at `0.88`, down from `0.9` — worth checking before shipping it. The "tradeoff between more/fewer Kafka partitions" question scored `relevance: 0` again, same as before reranking existed. Pulled the `context_chunks` straight from `eval_runs` for both runs: identical three retrieved chunks, same content, just reordered. Reranking changed nothing about what got retrieved for this question — the golden set expects `leader election` as a topic, and no ingested bookmark ever mentions it, so the model sometimes infers a partial answer from what's there and sometimes refuses outright. Not a reranking regression, a corpus gap that predates it.
+
+**Before/after #4 — the corpus gap, closed:** ingested a bookmark covering exactly the missing topic (throughput, latency, rebalancing overhead, leader election, parallelism for Kafka partition counts) through the same human-review pipeline as everything else, approved it, and re-scored just that question:
+
+| Question                                                                 | Before (corpus gap) | After (gap closed) |
+| ------------------------------------------------------------------------ | ------------------- | ------------------ |
+| What is the tradeoff between more Kafka partitions and fewer partitions? | `relevance: 0`      | `relevance: 1.0`   |
+
+`avgFaithfulness` never moved from `1.0` across any of this — the system was never wrong, it just didn't have the source material to be right about this one question until now.
+
+Snapshots: [`eval-response-before-agent-fix.json`](eval-response-before-agent-fix.json) → [`eval-response-after-agent-fix.json`](eval-response-after-agent-fix.json) → [`eval-response-after-prompt-fix.json`](eval-response-after-prompt-fix.json) → [`eval-response-after-reranking.json`](eval-response-after-reranking.json) (current).
 
 ---
 
@@ -447,3 +460,4 @@ Full records in [`docs/decisions/`](docs/decisions/). Highlights:
 | [018](docs/decisions/018-ambient-ai-usage-context.md)                 | Ambient `AsyncLocalStorage` for AI usage attribution | Same AI-client methods serve multiple operations; ambient context tags a call without polluting `IAiClient`'s contract |
 | [019](docs/decisions/019-synchronous-in-process-metrics-recording.md) | Metrics recorded in-process, not event-driven        | A broker only relocates the same failure mode at this scale; adds a component to solve nothing yet                     |
 | [020](docs/decisions/020-hybrid-search-rrf-fusion.md)                 | RRF over score-blending for hybrid search            | Cosine distance and `ts_rank` are on incomparable scales; RRF ranks by position, no tuned weight needed                |
+| [021](docs/decisions/021-cross-encoder-reranking.md)                  | Local cross-encoder reranking over hosted rerank API | No per-request cost or API key; joint query/doc scoring catches what independent retrievers miss                       |
